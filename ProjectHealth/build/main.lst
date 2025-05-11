@@ -1,0 +1,1973 @@
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 1
+
+
+   1              		.file	"main.c"
+   2              		.option nopic
+   3              		.attribute arch, "rv32i2p0_m2p0_a2p0_c2p0"
+   4              		.attribute unaligned_access, 0
+   5              		.attribute stack_align, 16
+   6              		.text
+   7              	.Ltext0:
+   8              		.cfi_sections	.debug_frame
+   9              		.section	.text.vSlide0,"ax",@progbits
+  10              		.align	1
+  11              		.globl	vSlide0
+  13              	vSlide0:
+  14              	.LFB3:
+  15              		.file 1 "main.c"
+   1:main.c        **** #include "gd32vf103.h"
+   2:main.c        **** #include "drivers.h"
+   3:main.c        **** #include "adc.h"
+   4:main.c        **** #include "lcd.h"
+   5:main.c        **** #include "usart.h"
+   6:main.c        **** #define EI 1
+   7:main.c        **** #define DI 0
+   8:main.c        **** 
+   9:main.c        **** // created constants by me
+  10:main.c        **** #define MODESWITCH -5
+  11:main.c        **** 
+  12:main.c        **** 
+  13:main.c        **** int main(void){
+  14:main.c        ****   int ms=0, s=0, key, pKey=-1, c=0, idle=0, rtc, hh, mm, ss;
+  15:main.c        ****   int lookUpTbl[16]={1,4,7,14,2,5,8,0,3,6,9,15,10,11,12,13};
+  16:main.c        ****   int dac=0, speed=-100;
+  17:main.c        ****   int adcr, tmpr;
+  18:main.c        ****   char digits[10][10]={"Zero ","One  ","Two  ","Three","Four ","Five ","Six  ","Seven","Eight","Nin
+  19:main.c        **** 
+  20:main.c        ****   /* created variables by me */
+  21:main.c        ****   int mode=0, modeSwap=0;    // där om modeswap == MODESWITCH så byter mode, ska uppnås via om p
+  22:main.c        ****   int vUsrPos=0;           // mode==0, sorts id för vart användaren är, varje knapptryck gör *1
+  23:main.c        ****   int rUsrPos=0;           // mode==1, samma här men liten annan konstruktipn då har flera slides
+  24:main.c        ****   //char vSlides [4];          // view. 4 huv. slides
+  25:main.c        ****   //char vTxtBox [12];         // view. 3 textrutor  per slide (0-2 för slide 0 etc) samt en tillh
+  26:main.c        ****   //char vInfoSlide [3];       // view. 3 infoslides för slide 1-3
+  27:main.c        ****   //char rSlides[4];           // r. 4 huv. slides
+  28:main.c        ****   //char rTxtBox[15];          // r. 3 + 4 + 4 + 4 rutor per slide, då första slide ej har beskri
+  29:main.c        ****   //char rInfoSlideBox[6];    // r. 3 infoslides textrutor (ena är tillbaka)
+  30:main.c        **** 
+  31:main.c        **** 
+  32:main.c        ****   t5omsi();                               // Initialize timer5 1kHz
+  33:main.c        ****   colinit();                              // Initialize column toolbox
+  34:main.c        ****   l88init();                              // Initialize 8*8 led toolbox
+  35:main.c        ****   keyinit();                              // Initialize keyboard toolbox
+  36:main.c        ****   Lcd_SetType(LCD_NORMAL);                // or use LCD_INVERTED!
+  37:main.c        ****   Lcd_Init();
+  38:main.c        ****   LCD_Clear(RED);
+  39:main.c        **** 
+  40:main.c        ****   eclic_global_interrupt_enable();        // !!! INTERRUPT ENABLED !!!
+  41:main.c        **** 
+  42:main.c        ****   /* interrupt */
+  43:main.c        ****   //interrupt sker, timer startar, ser knapptrycket o gör +/- (från och med andra) på gällande 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 2
+
+
+  44:main.c        **** 
+  45:main.c        ****   /* funktions deklarationer */
+  46:main.c        ****   void vSlide0(void);
+  47:main.c        ****   void vSlide1(void);
+  48:main.c        ****     void vSlide1Info(void);
+  49:main.c        ****   void vSlide2(void);
+  50:main.c        ****     void vSlide2Info(void);
+  51:main.c        ****   void vSlide3(void);
+  52:main.c        ****     void vSlide3Info(void);
+  53:main.c        **** 
+  54:main.c        **** 
+  55:main.c        **** 
+  56:main.c        ****   while (1) {
+  57:main.c        ****     idle++;                               // Manage Async events
+  58:main.c        **** 
+  59:main.c        ****     if (t5expq()) {                       // Manage periodic tasks, one ms heartbeat
+  60:main.c        ****       l88row(colset());                   // ...8*8LED and Keyboard
+  61:main.c        ****       ms++;                               // ...One second heart beat, time tracker
+  62:main.c        ****       l88mem(1, 0);
+  63:main.c        **** 
+  64:main.c        ****       
+  65:main.c        ****       /*
+  66:main.c        ****       if (ms==1000){
+  67:main.c        ****         ms=0;
+  68:main.c        ****       }
+  69:main.c        ****       */
+  70:main.c        ****      
+  71:main.c        ****       if ((key=keyscan())>=0) {   // ...Any key pressed?
+  72:main.c        ****         if (pKey==key) c++; else {c=0; pKey=key;}
+  73:main.c        ****         l88mem(0,lookUpTbl[key]+(c<<4));
+  74:main.c        **** 
+  75:main.c        ****         if (lookUpTbl[key]==10){   // A (up)
+  76:main.c        ****           if (mode==0){   // view mode logiken
+  77:main.c        ****           if (vUsrPos<10){ // om positionen är heltal, dvs på huvudslide
+  78:main.c        ****               vUsrPos--;
+  79:main.c        ****             } else {  // annars tillbaks till huvudslide
+  80:main.c        ****               vUsrPos=(vUsrPos/10);
+  81:main.c        ****             }
+  82:main.c        ****           } else if (mode==1){   // edit mode
+  83:main.c        ****             // kod logiken
+  84:main.c        ****           } else if (mode!=0 && mode!=1){ // om skulle bli tokigt
+  85:main.c        ****             vUsrPos=0;
+  86:main.c        ****             rUsrPos=0;
+  87:main.c        ****             mode=0;
+  88:main.c        ****           }
+  89:main.c        ****         }
+  90:main.c        **** 
+  91:main.c        ****         if (lookUpTbl[key]==11){   // B (choose)
+  92:main.c        ****           if (mode==0){   // view mode logiken
+  93:main.c        ****             if (vUsrPos<10){ // om positionen är heltal, dvs på huvudslide
+  94:main.c        ****               vUsrPos=(vUsrPos*10);
+  95:main.c        ****             } else {  // annars tillbaks till huvudslide
+  96:main.c        ****               vUsrPos=(vUsrPos/10);
+  97:main.c        ****             }
+  98:main.c        ****           } else if (mode==1){   // edit mode logiken
+  99:main.c        ****             // kod logiken
+ 100:main.c        ****           } else if (mode!=0 && mode!=1){ // om skulle bli tokigt
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 3
+
+
+ 101:main.c        ****             vUsrPos=0;
+ 102:main.c        ****             rUsrPos=0;
+ 103:main.c        ****             mode=0;
+ 104:main.c        ****           }
+ 105:main.c        ****         }
+ 106:main.c        **** 
+ 107:main.c        ****         if (lookUpTbl[key]==12){   // C (down)
+ 108:main.c        ****           if (mode==0){   // view mode logiken
+ 109:main.c        ****             if (vUsrPos<10){ // om positionen är ental, dvs på huvudslide
+ 110:main.c        ****               vUsrPos++;
+ 111:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 112:main.c        ****               vUsrPos=(vUsrPos/10);
+ 113:main.c        ****             }
+ 114:main.c        ****           } else if (mode==1){   // edit mode logiken
+ 115:main.c        ****             // kod logiken
+ 116:main.c        ****           } else if (mode!=0 && mode!=1){ // om skulle bli tokigt
+ 117:main.c        ****             vUsrPos=0;
+ 118:main.c        ****             rUsrPos=0;
+ 119:main.c        ****             mode=0;
+ 120:main.c        ****           }
+ 121:main.c        ****         }
+ 122:main.c        **** 
+ 123:main.c        ****         if (mode==0){
+ 124:main.c        ****           /* View Mode*/
+ 125:main.c        ****           switch (vUsrPos) {
+ 126:main.c        ****             // varje case representerar en slide som representeras av en funktion.
+ 127:main.c        ****             case 0    : vSlide0(); break;
+ 128:main.c        ****             case 1    : vSlide1(); break;
+ 129:main.c        ****             case 10   : vSlide1Info(); break;
+ 130:main.c        ****             case 2    : vSlide2(); break;
+ 131:main.c        ****             case 20   : vSlide2Info(); break;
+ 132:main.c        ****             case 3    : vSlide3(); break;
+ 133:main.c        ****             case 30   : vSlide3Info(); break;
+ 134:main.c        ****             default   : vUsrPos=0; vSlide0();
+ 135:main.c        ****           }
+ 136:main.c        ****         }
+ 137:main.c        ****       
+ 138:main.c        ****         /* NEDAN MÅSTE HA ANNAN LOGIK ÄN DECIMALTAL, SOM T.EX. MODE=0 FAST * MED 100 ALTERNATIVT 
+ 139:main.c        ****         /* if (mode==1){
+ 140:main.c        ****           switch (rUsrPos) {
+ 141:main.c        ****             // varje case representerar en slides ruta som representeras av en funktion. 
+ 142:main.c        ****             case 0     : // huvudslide pres funk ruta 0(); break;
+ 143:main.c        ****             case 1     : // huvudslide pres funk ruta 1(); break;
+ 144:main.c        ****             case 2     : // huvudslide pres funk ruta 2(); break;
+ 145:main.c        ****             // Slide 1 där samtliga 0.1 är identiska och 0.2 är identiska
+ 146:main.c        ****             case 3     : // slide 1 ruta 0(); break;
+ 147:main.c        ****             case 3.1   : // slide 1 infoslide textruta(); break;
+ 148:main.c        ****             case 3.2   : // slide 1 infoslide tillbakaruta(); break;
+ 149:main.c        ****             case 4     : // slide 1 ruta 1(); break;
+ 150:main.c        ****             case 4.1   : // -||-; break;
+ 151:main.c        ****             case 4.2   : // -||-; break;
+ 152:main.c        ****             case 5     : // slide 1 ruta 2(); break;
+ 153:main.c        ****             case 5.1   : // -||-; break;
+ 154:main.c        ****             case 5.2   : // -||-; break;
+ 155:main.c        ****             case 6     : // slide 1 ruta 3(); break;
+ 156:main.c        ****             case 6.1   : // -||-; break;
+ 157:main.c        ****             case 6.2   : // -||-; break;
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 4
+
+
+ 158:main.c        ****             // Slide 2 där samtliga 0.1 är identiska och 0.2 är identiska
+ 159:main.c        ****             case 7     : // slide 2 ruta 0(); break;
+ 160:main.c        ****             case 7.1   : // slide 2 infoslide textruta(); break;
+ 161:main.c        ****             case 7.2   : // slide 2 infoslide tillbakaruta(); break;
+ 162:main.c        ****             case 8     : // slide 2 ruta 1(); break;
+ 163:main.c        ****             case 8.1   : // -||-; break;
+ 164:main.c        ****             case 8.2   : // -||-; break;
+ 165:main.c        ****             case 9     : // slide 2 ruta 2(); break;
+ 166:main.c        ****             case 9.1   : // -||-; break;
+ 167:main.c        ****             case 9.2   : // -||-; break;
+ 168:main.c        ****             case 10     : // slide 2 ruta 3(); break;
+ 169:main.c        ****             case 10.1   : // -||-; break;
+ 170:main.c        ****             case 10.2   : // -||-; break;
+ 171:main.c        ****             // Slide 3 där samtliga 0.1 är identiska och 0.2 är identiska
+ 172:main.c        ****             case 11     : // slide 3 ruta 0(); break;
+ 173:main.c        ****             case 11.1   : // slide 3 infoslide textruta(); break;
+ 174:main.c        ****             case 11.2   : // slide 3 infoslide tillbakaruta(); break;
+ 175:main.c        ****             case 12     : // slide 3 ruta 1(); break;
+ 176:main.c        ****             case 12.1   : // -||-; break;
+ 177:main.c        ****             case 12.2   : // -||-; break;
+ 178:main.c        ****             case 13     : // slide 3 ruta 2(); break;
+ 179:main.c        ****             case 13.1   : // -||-; break;
+ 180:main.c        ****             case 13.2   : // -||-; break;
+ 181:main.c        ****             case 14     : // slide 3 ruta 3(); break;
+ 182:main.c        ****             case 14.1   : // -||-; break;
+ 183:main.c        ****             case 14.2   : // -||-; break;
+ 184:main.c        ****             default   : rUsrPos=0; rUsrPos0();
+ 185:main.c        ****           }
+ 186:main.c        ****         } */   
+ 187:main.c        **** 
+ 188:main.c        ****         l88mem(2, vUsrPos);
+ 189:main.c        ****      
+ 190:main.c        ****       }
+ 191:main.c        ****     }
+ 192:main.c        ****   }
+ 193:main.c        **** }
+ 194:main.c        **** 
+ 195:main.c        **** 
+ 196:main.c        **** /* funktionsdefinitioner */
+ 197:main.c        **** void vSlide0(void){
+  16              		.loc 1 197 19
+  17              		.cfi_startproc
+ 198:main.c        ****   LCD_Clear(WHITE);
+  18              		.loc 1 198 3
+  19 0000 4165     		li	a0,65536
+ 197:main.c        ****   LCD_Clear(WHITE);
+  20              		.loc 1 197 19 is_stmt 0
+  21 0002 4111     		addi	sp,sp,-16
+  22              	.LCFI0:
+  23              		.cfi_def_cfa_offset 16
+  24              		.loc 1 198 3
+  25 0004 7D15     		addi	a0,a0,-1
+ 197:main.c        ****   LCD_Clear(WHITE);
+  26              		.loc 1 197 19
+  27 0006 06C6     		sw	ra,12(sp)
+  28              		.cfi_offset 1, -4
+  29              		.loc 1 198 3
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 5
+
+
+  30 0008 97000000 		call	LCD_Clear
+  30      E7800000 
+  31              	.LVL0:
+ 199:main.c        ****   LCD_ShowStr(10, 10, "Alan Bortoleto", BLACK, TRANSPARENT);
+  32              		.loc 1 199 3 is_stmt 1
+  33 0010 37060000 		lui	a2,%hi(.LC2)
+  34 0014 0547     		li	a4,1
+  35 0016 8146     		li	a3,0
+  36 0018 13060600 		addi	a2,a2,%lo(.LC2)
+  37 001c A945     		li	a1,10
+  38 001e 2945     		li	a0,10
+  39 0020 97000000 		call	LCD_ShowStr
+  39      E7800000 
+  40              	.LVL1:
+ 200:main.c        ****   LCD_ShowStr(10, 30, "Belgium", BLACK, TRANSPARENT);
+  41              		.loc 1 200 3
+  42 0028 37060000 		lui	a2,%hi(.LC3)
+  43 002c 0547     		li	a4,1
+  44 002e 8146     		li	a3,0
+  45 0030 13060600 		addi	a2,a2,%lo(.LC3)
+  46 0034 F945     		li	a1,30
+  47 0036 2945     		li	a0,10
+  48 0038 97000000 		call	LCD_ShowStr
+  48      E7800000 
+  49              	.LVL2:
+ 201:main.c        ****   LCD_ShowStr(10, 50, "+32 466 24 60 88", BLACK, TRANSPARENT);
+  50              		.loc 1 201 3
+ 202:main.c        **** }
+  51              		.loc 1 202 1 is_stmt 0
+  52 0040 B240     		lw	ra,12(sp)
+  53              		.cfi_restore 1
+ 201:main.c        ****   LCD_ShowStr(10, 50, "+32 466 24 60 88", BLACK, TRANSPARENT);
+  54              		.loc 1 201 3
+  55 0042 37060000 		lui	a2,%hi(.LC4)
+  56              		.loc 1 202 1
+ 201:main.c        ****   LCD_ShowStr(10, 50, "+32 466 24 60 88", BLACK, TRANSPARENT);
+  57              		.loc 1 201 3
+  58 0046 0547     		li	a4,1
+  59 0048 8146     		li	a3,0
+  60 004a 13060600 		addi	a2,a2,%lo(.LC4)
+  61 004e 93052003 		li	a1,50
+  62 0052 2945     		li	a0,10
+  63              		.loc 1 202 1
+  64 0054 4101     		addi	sp,sp,16
+  65              	.LCFI1:
+  66              		.cfi_def_cfa_offset 0
+ 201:main.c        ****   LCD_ShowStr(10, 50, "+32 466 24 60 88", BLACK, TRANSPARENT);
+  67              		.loc 1 201 3
+  68 0056 17030000 		tail	LCD_ShowStr
+  68      67000300 
+  69              	.LVL3:
+  70              		.cfi_endproc
+  71              	.LFE3:
+  73              		.section	.text.vSlide1,"ax",@progbits
+  74              		.align	1
+  75              		.globl	vSlide1
+  77              	vSlide1:
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 6
+
+
+  78              	.LFB4:
+ 203:main.c        **** 
+ 204:main.c        **** void vSlide1(void){
+  79              		.loc 1 204 19 is_stmt 1
+  80              		.cfi_startproc
+ 205:main.c        ****   LCD_Clear(RED);
+  81              		.loc 1 205 3
+  82 0000 4165     		li	a0,65536
+ 204:main.c        ****   LCD_Clear(RED);
+  83              		.loc 1 204 19 is_stmt 0
+  84 0002 4111     		addi	sp,sp,-16
+  85              	.LCFI2:
+  86              		.cfi_def_cfa_offset 16
+  87              		.loc 1 205 3
+  88 0004 13050580 		addi	a0,a0,-2048
+ 204:main.c        ****   LCD_Clear(RED);
+  89              		.loc 1 204 19
+  90 0008 06C6     		sw	ra,12(sp)
+  91              		.cfi_offset 1, -4
+  92              		.loc 1 205 3
+  93 000a 97000000 		call	LCD_Clear
+  93      E7800000 
+  94              	.LVL4:
+ 206:main.c        ****   LCD_ShowStr(10, 10, "Bloodtype", BLACK, TRANSPARENT);
+  95              		.loc 1 206 3 is_stmt 1
+  96 0012 37060000 		lui	a2,%hi(.LC5)
+  97 0016 0547     		li	a4,1
+  98 0018 8146     		li	a3,0
+  99 001a 13060600 		addi	a2,a2,%lo(.LC5)
+ 100 001e A945     		li	a1,10
+ 101 0020 2945     		li	a0,10
+ 102 0022 97000000 		call	LCD_ShowStr
+ 102      E7800000 
+ 103              	.LVL5:
+ 207:main.c        ****   LCD_ShowStr(10, 30, "Blood medicine", BLACK, TRANSPARENT);
+ 104              		.loc 1 207 3
+ 105 002a 37060000 		lui	a2,%hi(.LC6)
+ 106 002e 0547     		li	a4,1
+ 107 0030 8146     		li	a3,0
+ 108 0032 13060600 		addi	a2,a2,%lo(.LC6)
+ 109 0036 F945     		li	a1,30
+ 110 0038 2945     		li	a0,10
+ 111 003a 97000000 		call	LCD_ShowStr
+ 111      E7800000 
+ 112              	.LVL6:
+ 208:main.c        ****   LCD_ShowStr(10, 50, "Something 3", BLACK, TRANSPARENT);
+ 113              		.loc 1 208 3
+ 209:main.c        **** }
+ 114              		.loc 1 209 1 is_stmt 0
+ 115 0042 B240     		lw	ra,12(sp)
+ 116              		.cfi_restore 1
+ 208:main.c        ****   LCD_ShowStr(10, 50, "Something 3", BLACK, TRANSPARENT);
+ 117              		.loc 1 208 3
+ 118 0044 37060000 		lui	a2,%hi(.LC7)
+ 119              		.loc 1 209 1
+ 208:main.c        ****   LCD_ShowStr(10, 50, "Something 3", BLACK, TRANSPARENT);
+ 120              		.loc 1 208 3
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 7
+
+
+ 121 0048 0547     		li	a4,1
+ 122 004a 8146     		li	a3,0
+ 123 004c 13060600 		addi	a2,a2,%lo(.LC7)
+ 124 0050 93052003 		li	a1,50
+ 125 0054 2945     		li	a0,10
+ 126              		.loc 1 209 1
+ 127 0056 4101     		addi	sp,sp,16
+ 128              	.LCFI3:
+ 129              		.cfi_def_cfa_offset 0
+ 208:main.c        ****   LCD_ShowStr(10, 50, "Something 3", BLACK, TRANSPARENT);
+ 130              		.loc 1 208 3
+ 131 0058 17030000 		tail	LCD_ShowStr
+ 131      67000300 
+ 132              	.LVL7:
+ 133              		.cfi_endproc
+ 134              	.LFE4:
+ 136              		.section	.text.vSlide1Info,"ax",@progbits
+ 137              		.align	1
+ 138              		.globl	vSlide1Info
+ 140              	vSlide1Info:
+ 141              	.LFB5:
+ 210:main.c        **** 
+ 211:main.c        **** void vSlide1Info(void){
+ 142              		.loc 1 211 23 is_stmt 1
+ 143              		.cfi_startproc
+ 212:main.c        ****   LCD_Clear(RED);
+ 144              		.loc 1 212 3
+ 145 0000 4165     		li	a0,65536
+ 211:main.c        ****   LCD_Clear(RED);
+ 146              		.loc 1 211 23 is_stmt 0
+ 147 0002 4111     		addi	sp,sp,-16
+ 148              	.LCFI4:
+ 149              		.cfi_def_cfa_offset 16
+ 150              		.loc 1 212 3
+ 151 0004 13050580 		addi	a0,a0,-2048
+ 211:main.c        ****   LCD_Clear(RED);
+ 152              		.loc 1 211 23
+ 153 0008 06C6     		sw	ra,12(sp)
+ 154              		.cfi_offset 1, -4
+ 155              		.loc 1 212 3
+ 156 000a 97000000 		call	LCD_Clear
+ 156      E7800000 
+ 157              	.LVL8:
+ 213:main.c        ****   LCD_ShowStr(10, 10, "This is", BLACK, TRANSPARENT);
+ 158              		.loc 1 213 3 is_stmt 1
+ 159 0012 37060000 		lui	a2,%hi(.LC8)
+ 160 0016 0547     		li	a4,1
+ 161 0018 8146     		li	a3,0
+ 162 001a 13060600 		addi	a2,a2,%lo(.LC8)
+ 163 001e A945     		li	a1,10
+ 164 0020 2945     		li	a0,10
+ 165 0022 97000000 		call	LCD_ShowStr
+ 165      E7800000 
+ 166              	.LVL9:
+ 214:main.c        ****   LCD_ShowStr(10, 30, "Slide 1", BLACK, TRANSPARENT);
+ 167              		.loc 1 214 3
+ 168 002a 37060000 		lui	a2,%hi(.LC9)
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 8
+
+
+ 169 002e 0547     		li	a4,1
+ 170 0030 8146     		li	a3,0
+ 171 0032 13060600 		addi	a2,a2,%lo(.LC9)
+ 172 0036 F945     		li	a1,30
+ 173 0038 2945     		li	a0,10
+ 174 003a 97000000 		call	LCD_ShowStr
+ 174      E7800000 
+ 175              	.LVL10:
+ 215:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 176              		.loc 1 215 3
+ 216:main.c        **** }
+ 177              		.loc 1 216 1 is_stmt 0
+ 178 0042 B240     		lw	ra,12(sp)
+ 179              		.cfi_restore 1
+ 215:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 180              		.loc 1 215 3
+ 181 0044 37060000 		lui	a2,%hi(.LC10)
+ 182              		.loc 1 216 1
+ 215:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 183              		.loc 1 215 3
+ 184 0048 0547     		li	a4,1
+ 185 004a 8146     		li	a3,0
+ 186 004c 13060600 		addi	a2,a2,%lo(.LC10)
+ 187 0050 93052003 		li	a1,50
+ 188 0054 2945     		li	a0,10
+ 189              		.loc 1 216 1
+ 190 0056 4101     		addi	sp,sp,16
+ 191              	.LCFI5:
+ 192              		.cfi_def_cfa_offset 0
+ 215:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 193              		.loc 1 215 3
+ 194 0058 17030000 		tail	LCD_ShowStr
+ 194      67000300 
+ 195              	.LVL11:
+ 196              		.cfi_endproc
+ 197              	.LFE5:
+ 199              		.section	.text.vSlide2,"ax",@progbits
+ 200              		.align	1
+ 201              		.globl	vSlide2
+ 203              	vSlide2:
+ 204              	.LFB6:
+ 217:main.c        **** 
+ 218:main.c        **** void vSlide2(void){
+ 205              		.loc 1 218 19 is_stmt 1
+ 206              		.cfi_startproc
+ 219:main.c        ****   LCD_Clear(BRRED);
+ 207              		.loc 1 219 3
+ 208 0000 4165     		li	a0,65536
+ 218:main.c        ****   LCD_Clear(BRRED);
+ 209              		.loc 1 218 19 is_stmt 0
+ 210 0002 4111     		addi	sp,sp,-16
+ 211              	.LCFI6:
+ 212              		.cfi_def_cfa_offset 16
+ 213              		.loc 1 219 3
+ 214 0004 130575C0 		addi	a0,a0,-1017
+ 218:main.c        ****   LCD_Clear(BRRED);
+ 215              		.loc 1 218 19
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 9
+
+
+ 216 0008 06C6     		sw	ra,12(sp)
+ 217              		.cfi_offset 1, -4
+ 218              		.loc 1 219 3
+ 219 000a 97000000 		call	LCD_Clear
+ 219      E7800000 
+ 220              	.LVL12:
+ 220:main.c        ****   LCD_ShowStr(10, 10, "Something 4", BLACK, TRANSPARENT);
+ 221              		.loc 1 220 3 is_stmt 1
+ 222 0012 37060000 		lui	a2,%hi(.LC11)
+ 223 0016 0547     		li	a4,1
+ 224 0018 8146     		li	a3,0
+ 225 001a 13060600 		addi	a2,a2,%lo(.LC11)
+ 226 001e A945     		li	a1,10
+ 227 0020 2945     		li	a0,10
+ 228 0022 97000000 		call	LCD_ShowStr
+ 228      E7800000 
+ 229              	.LVL13:
+ 221:main.c        ****   LCD_ShowStr(10, 30, "Something 5", BLACK, TRANSPARENT);
+ 230              		.loc 1 221 3
+ 231 002a 37060000 		lui	a2,%hi(.LC12)
+ 232 002e 0547     		li	a4,1
+ 233 0030 8146     		li	a3,0
+ 234 0032 13060600 		addi	a2,a2,%lo(.LC12)
+ 235 0036 F945     		li	a1,30
+ 236 0038 2945     		li	a0,10
+ 237 003a 97000000 		call	LCD_ShowStr
+ 237      E7800000 
+ 238              	.LVL14:
+ 222:main.c        ****   LCD_ShowStr(10, 50, "Something 6", BLACK, TRANSPARENT);
+ 239              		.loc 1 222 3
+ 223:main.c        **** }
+ 240              		.loc 1 223 1 is_stmt 0
+ 241 0042 B240     		lw	ra,12(sp)
+ 242              		.cfi_restore 1
+ 222:main.c        ****   LCD_ShowStr(10, 50, "Something 6", BLACK, TRANSPARENT);
+ 243              		.loc 1 222 3
+ 244 0044 37060000 		lui	a2,%hi(.LC13)
+ 245              		.loc 1 223 1
+ 222:main.c        ****   LCD_ShowStr(10, 50, "Something 6", BLACK, TRANSPARENT);
+ 246              		.loc 1 222 3
+ 247 0048 0547     		li	a4,1
+ 248 004a 8146     		li	a3,0
+ 249 004c 13060600 		addi	a2,a2,%lo(.LC13)
+ 250 0050 93052003 		li	a1,50
+ 251 0054 2945     		li	a0,10
+ 252              		.loc 1 223 1
+ 253 0056 4101     		addi	sp,sp,16
+ 254              	.LCFI7:
+ 255              		.cfi_def_cfa_offset 0
+ 222:main.c        ****   LCD_ShowStr(10, 50, "Something 6", BLACK, TRANSPARENT);
+ 256              		.loc 1 222 3
+ 257 0058 17030000 		tail	LCD_ShowStr
+ 257      67000300 
+ 258              	.LVL15:
+ 259              		.cfi_endproc
+ 260              	.LFE6:
+ 262              		.section	.text.vSlide2Info,"ax",@progbits
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 10
+
+
+ 263              		.align	1
+ 264              		.globl	vSlide2Info
+ 266              	vSlide2Info:
+ 267              	.LFB7:
+ 224:main.c        **** 
+ 225:main.c        **** void vSlide2Info(void){
+ 268              		.loc 1 225 23 is_stmt 1
+ 269              		.cfi_startproc
+ 226:main.c        ****   LCD_Clear(BRRED);
+ 270              		.loc 1 226 3
+ 271 0000 4165     		li	a0,65536
+ 225:main.c        ****   LCD_Clear(BRRED);
+ 272              		.loc 1 225 23 is_stmt 0
+ 273 0002 4111     		addi	sp,sp,-16
+ 274              	.LCFI8:
+ 275              		.cfi_def_cfa_offset 16
+ 276              		.loc 1 226 3
+ 277 0004 130575C0 		addi	a0,a0,-1017
+ 225:main.c        ****   LCD_Clear(BRRED);
+ 278              		.loc 1 225 23
+ 279 0008 06C6     		sw	ra,12(sp)
+ 280              		.cfi_offset 1, -4
+ 281              		.loc 1 226 3
+ 282 000a 97000000 		call	LCD_Clear
+ 282      E7800000 
+ 283              	.LVL16:
+ 227:main.c        ****   LCD_ShowStr(10, 10, "This is ", BLACK, TRANSPARENT);
+ 284              		.loc 1 227 3 is_stmt 1
+ 285 0012 37060000 		lui	a2,%hi(.LC14)
+ 286 0016 0547     		li	a4,1
+ 287 0018 8146     		li	a3,0
+ 288 001a 13060600 		addi	a2,a2,%lo(.LC14)
+ 289 001e A945     		li	a1,10
+ 290 0020 2945     		li	a0,10
+ 291 0022 97000000 		call	LCD_ShowStr
+ 291      E7800000 
+ 292              	.LVL17:
+ 228:main.c        ****   LCD_ShowStr(10, 30, "slide 2", BLACK, TRANSPARENT);
+ 293              		.loc 1 228 3
+ 294 002a 37060000 		lui	a2,%hi(.LC15)
+ 295 002e 0547     		li	a4,1
+ 296 0030 8146     		li	a3,0
+ 297 0032 13060600 		addi	a2,a2,%lo(.LC15)
+ 298 0036 F945     		li	a1,30
+ 299 0038 2945     		li	a0,10
+ 300 003a 97000000 		call	LCD_ShowStr
+ 300      E7800000 
+ 301              	.LVL18:
+ 229:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 302              		.loc 1 229 3
+ 230:main.c        **** }
+ 303              		.loc 1 230 1 is_stmt 0
+ 304 0042 B240     		lw	ra,12(sp)
+ 305              		.cfi_restore 1
+ 229:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 306              		.loc 1 229 3
+ 307 0044 37060000 		lui	a2,%hi(.LC10)
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 11
+
+
+ 308              		.loc 1 230 1
+ 229:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 309              		.loc 1 229 3
+ 310 0048 0547     		li	a4,1
+ 311 004a 8146     		li	a3,0
+ 312 004c 13060600 		addi	a2,a2,%lo(.LC10)
+ 313 0050 93052003 		li	a1,50
+ 314 0054 2945     		li	a0,10
+ 315              		.loc 1 230 1
+ 316 0056 4101     		addi	sp,sp,16
+ 317              	.LCFI9:
+ 318              		.cfi_def_cfa_offset 0
+ 229:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 319              		.loc 1 229 3
+ 320 0058 17030000 		tail	LCD_ShowStr
+ 320      67000300 
+ 321              	.LVL19:
+ 322              		.cfi_endproc
+ 323              	.LFE7:
+ 325              		.section	.text.vSlide3,"ax",@progbits
+ 326              		.align	1
+ 327              		.globl	vSlide3
+ 329              	vSlide3:
+ 330              	.LFB8:
+ 231:main.c        **** 
+ 232:main.c        **** void vSlide3(void){
+ 331              		.loc 1 232 19 is_stmt 1
+ 332              		.cfi_startproc
+ 233:main.c        ****   LCD_Clear(YELLOW);
+ 333              		.loc 1 233 3
+ 334 0000 4165     		li	a0,65536
+ 232:main.c        ****   LCD_Clear(YELLOW);
+ 335              		.loc 1 232 19 is_stmt 0
+ 336 0002 4111     		addi	sp,sp,-16
+ 337              	.LCFI10:
+ 338              		.cfi_def_cfa_offset 16
+ 339              		.loc 1 233 3
+ 340 0004 0115     		addi	a0,a0,-32
+ 232:main.c        ****   LCD_Clear(YELLOW);
+ 341              		.loc 1 232 19
+ 342 0006 06C6     		sw	ra,12(sp)
+ 343              		.cfi_offset 1, -4
+ 344              		.loc 1 233 3
+ 345 0008 97000000 		call	LCD_Clear
+ 345      E7800000 
+ 346              	.LVL20:
+ 234:main.c        ****   LCD_ShowStr(10, 10, "Something 7", BLACK, TRANSPARENT);
+ 347              		.loc 1 234 3 is_stmt 1
+ 348 0010 37060000 		lui	a2,%hi(.LC16)
+ 349 0014 0547     		li	a4,1
+ 350 0016 8146     		li	a3,0
+ 351 0018 13060600 		addi	a2,a2,%lo(.LC16)
+ 352 001c A945     		li	a1,10
+ 353 001e 2945     		li	a0,10
+ 354 0020 97000000 		call	LCD_ShowStr
+ 354      E7800000 
+ 355              	.LVL21:
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 12
+
+
+ 235:main.c        ****   LCD_ShowStr(10, 30, "Something 8", BLACK, TRANSPARENT);
+ 356              		.loc 1 235 3
+ 357 0028 37060000 		lui	a2,%hi(.LC17)
+ 358 002c 0547     		li	a4,1
+ 359 002e 8146     		li	a3,0
+ 360 0030 13060600 		addi	a2,a2,%lo(.LC17)
+ 361 0034 F945     		li	a1,30
+ 362 0036 2945     		li	a0,10
+ 363 0038 97000000 		call	LCD_ShowStr
+ 363      E7800000 
+ 364              	.LVL22:
+ 236:main.c        ****   LCD_ShowStr(10, 50, "Something 9", BLACK, TRANSPARENT);
+ 365              		.loc 1 236 3
+ 237:main.c        **** }
+ 366              		.loc 1 237 1 is_stmt 0
+ 367 0040 B240     		lw	ra,12(sp)
+ 368              		.cfi_restore 1
+ 236:main.c        ****   LCD_ShowStr(10, 50, "Something 9", BLACK, TRANSPARENT);
+ 369              		.loc 1 236 3
+ 370 0042 37060000 		lui	a2,%hi(.LC18)
+ 371              		.loc 1 237 1
+ 236:main.c        ****   LCD_ShowStr(10, 50, "Something 9", BLACK, TRANSPARENT);
+ 372              		.loc 1 236 3
+ 373 0046 0547     		li	a4,1
+ 374 0048 8146     		li	a3,0
+ 375 004a 13060600 		addi	a2,a2,%lo(.LC18)
+ 376 004e 93052003 		li	a1,50
+ 377 0052 2945     		li	a0,10
+ 378              		.loc 1 237 1
+ 379 0054 4101     		addi	sp,sp,16
+ 380              	.LCFI11:
+ 381              		.cfi_def_cfa_offset 0
+ 236:main.c        ****   LCD_ShowStr(10, 50, "Something 9", BLACK, TRANSPARENT);
+ 382              		.loc 1 236 3
+ 383 0056 17030000 		tail	LCD_ShowStr
+ 383      67000300 
+ 384              	.LVL23:
+ 385              		.cfi_endproc
+ 386              	.LFE8:
+ 388              		.section	.text.vSlide3Info,"ax",@progbits
+ 389              		.align	1
+ 390              		.globl	vSlide3Info
+ 392              	vSlide3Info:
+ 393              	.LFB9:
+ 238:main.c        **** 
+ 239:main.c        **** void vSlide3Info(void){
+ 394              		.loc 1 239 23 is_stmt 1
+ 395              		.cfi_startproc
+ 240:main.c        ****   LCD_Clear(YELLOW);
+ 396              		.loc 1 240 3
+ 397 0000 4165     		li	a0,65536
+ 239:main.c        ****   LCD_Clear(YELLOW);
+ 398              		.loc 1 239 23 is_stmt 0
+ 399 0002 4111     		addi	sp,sp,-16
+ 400              	.LCFI12:
+ 401              		.cfi_def_cfa_offset 16
+ 402              		.loc 1 240 3
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 13
+
+
+ 403 0004 0115     		addi	a0,a0,-32
+ 239:main.c        ****   LCD_Clear(YELLOW);
+ 404              		.loc 1 239 23
+ 405 0006 06C6     		sw	ra,12(sp)
+ 406              		.cfi_offset 1, -4
+ 407              		.loc 1 240 3
+ 408 0008 97000000 		call	LCD_Clear
+ 408      E7800000 
+ 409              	.LVL24:
+ 241:main.c        ****   LCD_ShowStr(10, 10, "This is", BLACK, TRANSPARENT);
+ 410              		.loc 1 241 3 is_stmt 1
+ 411 0010 37060000 		lui	a2,%hi(.LC8)
+ 412 0014 0547     		li	a4,1
+ 413 0016 8146     		li	a3,0
+ 414 0018 13060600 		addi	a2,a2,%lo(.LC8)
+ 415 001c A945     		li	a1,10
+ 416 001e 2945     		li	a0,10
+ 417 0020 97000000 		call	LCD_ShowStr
+ 417      E7800000 
+ 418              	.LVL25:
+ 242:main.c        ****   LCD_ShowStr(10, 30, "slide 3", BLACK, TRANSPARENT);
+ 419              		.loc 1 242 3
+ 420 0028 37060000 		lui	a2,%hi(.LC19)
+ 421 002c 0547     		li	a4,1
+ 422 002e 8146     		li	a3,0
+ 423 0030 13060600 		addi	a2,a2,%lo(.LC19)
+ 424 0034 F945     		li	a1,30
+ 425 0036 2945     		li	a0,10
+ 426 0038 97000000 		call	LCD_ShowStr
+ 426      E7800000 
+ 427              	.LVL26:
+ 243:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 428              		.loc 1 243 3
+ 244:main.c        **** }
+ 429              		.loc 1 244 1 is_stmt 0
+ 430 0040 B240     		lw	ra,12(sp)
+ 431              		.cfi_restore 1
+ 243:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 432              		.loc 1 243 3
+ 433 0042 37060000 		lui	a2,%hi(.LC10)
+ 434              		.loc 1 244 1
+ 243:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 435              		.loc 1 243 3
+ 436 0046 0547     		li	a4,1
+ 437 0048 8146     		li	a3,0
+ 438 004a 13060600 		addi	a2,a2,%lo(.LC10)
+ 439 004e 93052003 		li	a1,50
+ 440 0052 2945     		li	a0,10
+ 441              		.loc 1 244 1
+ 442 0054 4101     		addi	sp,sp,16
+ 443              	.LCFI13:
+ 444              		.cfi_def_cfa_offset 0
+ 243:main.c        ****   LCD_ShowStr(10, 50, "info-slide", BLACK, TRANSPARENT);
+ 445              		.loc 1 243 3
+ 446 0056 17030000 		tail	LCD_ShowStr
+ 446      67000300 
+ 447              	.LVL27:
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 14
+
+
+ 448              		.cfi_endproc
+ 449              	.LFE9:
+ 451              		.section	.text.startup.main,"ax",@progbits
+ 452              		.align	1
+ 453              		.globl	main
+ 455              	main:
+ 456              	.LFB2:
+  13:main.c        ****   int ms=0, s=0, key, pKey=-1, c=0, idle=0, rtc, hh, mm, ss;
+ 457              		.loc 1 13 15 is_stmt 1
+ 458              		.cfi_startproc
+  14:main.c        ****   int lookUpTbl[16]={1,4,7,14,2,5,8,0,3,6,9,15,10,11,12,13};
+ 459              		.loc 1 14 3
+ 460              	.LVL28:
+  15:main.c        ****   int dac=0, speed=-100;
+ 461              		.loc 1 15 3
+  13:main.c        ****   int ms=0, s=0, key, pKey=-1, c=0, idle=0, rtc, hh, mm, ss;
+ 462              		.loc 1 13 15 is_stmt 0
+ 463 0000 5971     		addi	sp,sp,-112
+ 464              	.LCFI14:
+ 465              		.cfi_def_cfa_offset 112
+  15:main.c        ****   int dac=0, speed=-100;
+ 466              		.loc 1 15 7
+ 467 0002 B7050000 		lui	a1,%hi(.LANCHOR0)
+ 468 0006 13060004 		li	a2,64
+ 469 000a 93850500 		addi	a1,a1,%lo(.LANCHOR0)
+ 470 000e 0A85     		mv	a0,sp
+  13:main.c        ****   int ms=0, s=0, key, pKey=-1, c=0, idle=0, rtc, hh, mm, ss;
+ 471              		.loc 1 13 15
+ 472 0010 86D6     		sw	ra,108(sp)
+ 473 0012 A2D4     		sw	s0,104(sp)
+ 474 0014 A6D2     		sw	s1,100(sp)
+ 475 0016 CECE     		sw	s3,92(sp)
+ 476 0018 D2CC     		sw	s4,88(sp)
+ 477 001a D6CA     		sw	s5,84(sp)
+ 478 001c DAC8     		sw	s6,80(sp)
+ 479 001e DEC6     		sw	s7,76(sp)
+ 480 0020 E2C4     		sw	s8,72(sp)
+ 481 0022 E6C2     		sw	s9,68(sp)
+ 482 0024 EAC0     		sw	s10,64(sp)
+ 483 0026 CAD0     		sw	s2,96(sp)
+ 484              		.cfi_offset 1, -4
+ 485              		.cfi_offset 8, -8
+ 486              		.cfi_offset 9, -12
+ 487              		.cfi_offset 19, -20
+ 488              		.cfi_offset 20, -24
+ 489              		.cfi_offset 21, -28
+ 490              		.cfi_offset 22, -32
+ 491              		.cfi_offset 23, -36
+ 492              		.cfi_offset 24, -40
+ 493              		.cfi_offset 25, -44
+ 494              		.cfi_offset 26, -48
+ 495              		.cfi_offset 18, -16
+  15:main.c        ****   int dac=0, speed=-100;
+ 496              		.loc 1 15 7
+ 497 0028 97000000 		call	memcpy
+ 497      E7800000 
+ 498              	.LVL29:
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 15
+
+
+  16:main.c        ****   int adcr, tmpr;
+ 499              		.loc 1 16 3 is_stmt 1
+  17:main.c        ****   char digits[10][10]={"Zero ","One  ","Two  ","Three","Four ","Five ","Six  ","Seven","Eight","Nin
+ 500              		.loc 1 17 3
+  18:main.c        **** 
+ 501              		.loc 1 18 3
+  21:main.c        ****   int vUsrPos=0;           // mode==0, sorts id för vart användaren är, varje knapptryck gör *1
+ 502              		.loc 1 21 3
+  22:main.c        ****   int rUsrPos=0;           // mode==1, samma här men liten annan konstruktipn då har flera slides
+ 503              		.loc 1 22 3
+  23:main.c        ****   //char vSlides [4];          // view. 4 huv. slides
+ 504              		.loc 1 23 3
+  32:main.c        ****   colinit();                              // Initialize column toolbox
+ 505              		.loc 1 32 3
+ 506 0030 97000000 		call	t5omsi
+ 506      E7800000 
+ 507              	.LVL30:
+  33:main.c        ****   l88init();                              // Initialize 8*8 led toolbox
+ 508              		.loc 1 33 3
+ 509 0038 97000000 		call	colinit
+ 509      E7800000 
+ 510              	.LVL31:
+  34:main.c        ****   keyinit();                              // Initialize keyboard toolbox
+ 511              		.loc 1 34 3
+ 512 0040 97000000 		call	l88init
+ 512      E7800000 
+ 513              	.LVL32:
+  35:main.c        ****   Lcd_SetType(LCD_NORMAL);                // or use LCD_INVERTED!
+ 514              		.loc 1 35 3
+ 515 0048 97000000 		call	keyinit
+ 515      E7800000 
+ 516              	.LVL33:
+  36:main.c        ****   Lcd_Init();
+ 517              		.loc 1 36 3
+ 518 0050 0145     		li	a0,0
+ 519 0052 97000000 		call	Lcd_SetType
+ 519      E7800000 
+ 520              	.LVL34:
+  37:main.c        ****   LCD_Clear(RED);
+ 521              		.loc 1 37 3
+ 522 005a 97000000 		call	Lcd_Init
+ 522      E7800000 
+ 523              	.LVL35:
+  38:main.c        **** 
+ 524              		.loc 1 38 3
+ 525 0062 4165     		li	a0,65536
+ 526 0064 13050580 		addi	a0,a0,-2048
+ 527 0068 97000000 		call	LCD_Clear
+ 527      E7800000 
+ 528              	.LVL36:
+  40:main.c        **** 
+ 529              		.loc 1 40 3
+  22:main.c        ****   int rUsrPos=0;           // mode==1, samma här men liten annan konstruktipn då har flera slides
+ 530              		.loc 1 22 7 is_stmt 0
+ 531 0070 0144     		li	s0,0
+  40:main.c        **** 
+ 532              		.loc 1 40 3
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 16
+
+
+ 533 0072 97000000 		call	eclic_global_interrupt_enable
+ 533      E7800000 
+ 534              	.LVL37:
+  14:main.c        ****   int lookUpTbl[16]={1,4,7,14,2,5,8,0,3,6,9,15,10,11,12,13};
+ 535              		.loc 1 14 32
+ 536 007a 8149     		li	s3,0
+  14:main.c        ****   int lookUpTbl[16]={1,4,7,14,2,5,8,0,3,6,9,15,10,11,12,13};
+ 537              		.loc 1 14 23
+ 538 007c 7D5A     		li	s4,-1
+  75:main.c        ****           if (mode==0){   // view mode logiken
+ 539              		.loc 1 75 12
+ 540 007e A944     		li	s1,10
+  91:main.c        ****           if (mode==0){   // view mode logiken
+ 541              		.loc 1 91 12
+ 542 0080 AD4B     		li	s7,11
+ 107:main.c        ****           if (mode==0){   // view mode logiken
+ 543              		.loc 1 107 12
+ 544 0082 314C     		li	s8,12
+ 109:main.c        ****               vUsrPos++;
+ 545              		.loc 1 109 16
+ 546 0084 A54A     		li	s5,9
+ 125:main.c        ****             // varje case representerar en slide som representeras av en funktion.
+ 547              		.loc 1 125 11
+ 548 0086 0D4B     		li	s6,3
+ 549 0088 D14C     		li	s9,20
+ 550 008a 794D     		li	s10,30
+ 551              	.LVL38:
+ 552              	.L16:
+  46:main.c        ****   void vSlide1(void);
+ 553              		.loc 1 46 3 is_stmt 1
+  47:main.c        ****     void vSlide1Info(void);
+ 554              		.loc 1 47 3
+  48:main.c        ****   void vSlide2(void);
+ 555              		.loc 1 48 5
+  49:main.c        ****     void vSlide2Info(void);
+ 556              		.loc 1 49 3
+  50:main.c        ****   void vSlide3(void);
+ 557              		.loc 1 50 5
+  51:main.c        ****     void vSlide3Info(void);
+ 558              		.loc 1 51 3
+  52:main.c        **** 
+ 559              		.loc 1 52 5
+  56:main.c        ****     idle++;                               // Manage Async events
+ 560              		.loc 1 56 3
+  57:main.c        **** 
+ 561              		.loc 1 57 5
+  59:main.c        ****       l88row(colset());                   // ...8*8LED and Keyboard
+ 562              		.loc 1 59 5
+  59:main.c        ****       l88row(colset());                   // ...8*8LED and Keyboard
+ 563              		.loc 1 59 9 is_stmt 0
+ 564 008c 97000000 		call	t5expq
+ 564      E7800000 
+ 565              	.LVL39:
+  59:main.c        ****       l88row(colset());                   // ...8*8LED and Keyboard
+ 566              		.loc 1 59 8
+ 567 0094 65DD     		beq	a0,zero,.L16
+  60:main.c        ****       ms++;                               // ...One second heart beat, time tracker
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 17
+
+
+ 568              		.loc 1 60 7 is_stmt 1
+ 569 0096 97000000 		call	colset
+ 569      E7800000 
+ 570              	.LVL40:
+ 571 009e 97000000 		call	l88row
+ 571      E7800000 
+ 572              	.LVL41:
+  61:main.c        ****       l88mem(1, 0);
+ 573              		.loc 1 61 7
+  62:main.c        **** 
+ 574              		.loc 1 62 7
+ 575 00a6 8145     		li	a1,0
+ 576 00a8 0545     		li	a0,1
+ 577 00aa 97000000 		call	l88mem
+ 577      E7800000 
+ 578              	.LVL42:
+  71:main.c        ****         if (pKey==key) c++; else {c=0; pKey=key;}
+ 579              		.loc 1 71 7
+  71:main.c        ****         if (pKey==key) c++; else {c=0; pKey=key;}
+ 580              		.loc 1 71 16 is_stmt 0
+ 581 00b2 97000000 		call	keyscan
+ 581      E7800000 
+ 582              	.LVL43:
+ 583 00ba 2A89     		mv	s2,a0
+ 584              	.LVL44:
+  71:main.c        ****         if (pKey==key) c++; else {c=0; pKey=key;}
+ 585              		.loc 1 71 10
+ 586 00bc E34805FC 		blt	a0,zero,.L16
+  72:main.c        ****         l88mem(0,lookUpTbl[key]+(c<<4));
+ 587              		.loc 1 72 9 is_stmt 1
+  72:main.c        ****         l88mem(0,lookUpTbl[key]+(c<<4));
+ 588              		.loc 1 72 25 is_stmt 0
+ 589 00c0 8509     		addi	s3,s3,1
+ 590              	.LVL45:
+  72:main.c        ****         l88mem(0,lookUpTbl[key]+(c<<4));
+ 591              		.loc 1 72 12
+ 592 00c2 63034501 		beq	a0,s4,.L18
+  72:main.c        ****         l88mem(0,lookUpTbl[key]+(c<<4));
+ 593              		.loc 1 72 36
+ 594 00c6 8149     		li	s3,0
+ 595              	.LVL46:
+ 596              	.L18:
+  73:main.c        **** 
+ 597              		.loc 1 73 9 is_stmt 1
+  73:main.c        **** 
+ 598              		.loc 1 73 27 is_stmt 0
+ 599 00c8 93172900 		slli	a5,s2,2
+ 600 00cc 9800     		addi	a4,sp,64
+ 601 00ce BA97     		add	a5,a4,a5
+ 602 00d0 03AA07FC 		lw	s4,-64(a5)
+  73:main.c        **** 
+ 603              		.loc 1 73 35
+ 604 00d4 93954900 		slli	a1,s3,4
+  73:main.c        **** 
+ 605              		.loc 1 73 9
+ 606 00d8 0145     		li	a0,0
+ 607              	.LVL47:
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 18
+
+
+ 608 00da D295     		add	a1,a1,s4
+ 609 00dc 97000000 		call	l88mem
+ 609      E7800000 
+ 610              	.LVL48:
+  75:main.c        ****           if (mode==0){   // view mode logiken
+ 611              		.loc 1 75 9 is_stmt 1
+  75:main.c        ****           if (mode==0){   // view mode logiken
+ 612              		.loc 1 75 12 is_stmt 0
+ 613 00e4 63139A02 		bne	s4,s1,.L19
+  76:main.c        ****           if (vUsrPos<10){ // om positionen är heltal, dvs på huvudslide
+ 614              		.loc 1 76 11 is_stmt 1
+  77:main.c        ****               vUsrPos--;
+ 615              		.loc 1 77 11
+  77:main.c        ****               vUsrPos--;
+ 616              		.loc 1 77 14 is_stmt 0
+ 617 00e8 63CE8A02 		bgt	s0,s5,.L25
+  78:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 618              		.loc 1 78 15 is_stmt 1
+  78:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 619              		.loc 1 78 22 is_stmt 0
+ 620 00ec 7D14     		addi	s0,s0,-1
+ 621              	.LVL49:
+ 622              	.L24:
+ 123:main.c        ****           /* View Mode*/
+ 623              		.loc 1 123 9 is_stmt 1
+ 125:main.c        ****             // varje case representerar en slide som representeras av en funktion.
+ 624              		.loc 1 125 11
+ 625 00ee 63006409 		beq	s0,s6,.L26
+ 626 00f2 634C8B02 		bgt	s0,s6,.L27
+ 627 00f6 8547     		li	a5,1
+ 628 00f8 630CF404 		beq	s0,a5,.L28
+ 629 00fc 63DD8702 		ble	s0,a5,.L30
+ 130:main.c        ****             case 20   : vSlide2Info(); break;
+ 630              		.loc 1 130 25
+ 631 0100 97000000 		call	vSlide2
+ 631      E7800000 
+ 632              	.LVL50:
+ 130:main.c        ****             case 20   : vSlide2Info(); break;
+ 633              		.loc 1 130 36
+ 130:main.c        ****             case 20   : vSlide2Info(); break;
+ 634              		.loc 1 130 13 is_stmt 0
+ 635 0108 25A8     		j	.L34
+ 636              	.L19:
+  91:main.c        ****           if (mode==0){   // view mode logiken
+ 637              		.loc 1 91 9 is_stmt 1
+  91:main.c        ****           if (mode==0){   // view mode logiken
+ 638              		.loc 1 91 12 is_stmt 0
+ 639 010a 63177A01 		bne	s4,s7,.L22
+  92:main.c        ****             if (vUsrPos<10){ // om positionen är heltal, dvs på huvudslide
+ 640              		.loc 1 92 11 is_stmt 1
+  93:main.c        ****               vUsrPos=(vUsrPos*10);
+ 641              		.loc 1 93 13
+  93:main.c        ****               vUsrPos=(vUsrPos*10);
+ 642              		.loc 1 93 16 is_stmt 0
+ 643 010e 63CB8A00 		bgt	s0,s5,.L25
+  94:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 644              		.loc 1 94 15 is_stmt 1
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 19
+
+
+  94:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 645              		.loc 1 94 22 is_stmt 0
+ 646 0112 33049402 		mul	s0,s0,s1
+ 647              	.LVL51:
+ 648 0116 E1BF     		j	.L24
+ 649              	.L22:
+ 107:main.c        ****           if (mode==0){   // view mode logiken
+ 650              		.loc 1 107 9 is_stmt 1
+ 107:main.c        ****           if (mode==0){   // view mode logiken
+ 651              		.loc 1 107 12 is_stmt 0
+ 652 0118 E31B8AFD 		bne	s4,s8,.L24
+ 108:main.c        ****             if (vUsrPos<10){ // om positionen är ental, dvs på huvudslide
+ 653              		.loc 1 108 11 is_stmt 1
+ 109:main.c        ****               vUsrPos++;
+ 654              		.loc 1 109 13
+ 109:main.c        ****               vUsrPos++;
+ 655              		.loc 1 109 16 is_stmt 0
+ 656 011c 63C48A00 		bgt	s0,s5,.L25
+ 110:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 657              		.loc 1 110 15 is_stmt 1
+ 110:main.c        ****             } else {  // annars tillbaks till huvudslide
+ 658              		.loc 1 110 22 is_stmt 0
+ 659 0120 0504     		addi	s0,s0,1
+ 660              	.LVL52:
+ 661 0122 F1B7     		j	.L24
+ 662              	.L25:
+ 112:main.c        ****             }
+ 663              		.loc 1 112 15 is_stmt 1
+ 112:main.c        ****             }
+ 664              		.loc 1 112 22 is_stmt 0
+ 665 0124 33449402 		div	s0,s0,s1
+ 666              	.LVL53:
+ 667 0128 D9B7     		j	.L24
+ 668              	.L27:
+ 125:main.c        ****             // varje case representerar en slide som representeras av en funktion.
+ 669              		.loc 1 125 11
+ 670 012a 630D9403 		beq	s0,s9,.L31
+ 671 012e 6305A405 		beq	s0,s10,.L32
+ 672 0132 63049402 		beq	s0,s1,.L33
+ 673              	.L30:
+ 127:main.c        ****             case 1    : vSlide1(); break;
+ 674              		.loc 1 127 25 is_stmt 1
+ 675 0136 97000000 		call	vSlide0
+ 675      E7800000 
+ 676              	.LVL54:
+ 127:main.c        ****             case 1    : vSlide1(); break;
+ 677              		.loc 1 127 36
+ 127:main.c        ****             case 1    : vSlide1(); break;
+ 678              		.loc 1 127 13 is_stmt 0
+ 679 013e 0144     		li	s0,0
+ 680              	.LVL55:
+ 681              	.L34:
+ 188:main.c        ****      
+ 682              		.loc 1 188 9 is_stmt 1
+ 683 0140 A285     		mv	a1,s0
+ 684 0142 0945     		li	a0,2
+ 685 0144 97000000 		call	l88mem
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 20
+
+
+ 685      E7800000 
+ 686              	.LVL56:
+ 687 014c 4A8A     		mv	s4,s2
+ 688 014e 3DBF     		j	.L16
+ 689              	.L28:
+ 128:main.c        ****             case 10   : vSlide1Info(); break;
+ 690              		.loc 1 128 25
+ 691 0150 97000000 		call	vSlide1
+ 691      E7800000 
+ 692              	.LVL57:
+ 128:main.c        ****             case 10   : vSlide1Info(); break;
+ 693              		.loc 1 128 36
+ 128:main.c        ****             case 10   : vSlide1Info(); break;
+ 694              		.loc 1 128 13 is_stmt 0
+ 695 0158 E5B7     		j	.L34
+ 696              	.L33:
+ 129:main.c        ****             case 2    : vSlide2(); break;
+ 697              		.loc 1 129 25 is_stmt 1
+ 698 015a 97000000 		call	vSlide1Info
+ 698      E7800000 
+ 699              	.LVL58:
+ 129:main.c        ****             case 2    : vSlide2(); break;
+ 700              		.loc 1 129 40
+ 129:main.c        ****             case 2    : vSlide2(); break;
+ 701              		.loc 1 129 13 is_stmt 0
+ 702 0162 F9BF     		j	.L34
+ 703              	.L31:
+ 131:main.c        ****             case 3    : vSlide3(); break;
+ 704              		.loc 1 131 25 is_stmt 1
+ 705 0164 97000000 		call	vSlide2Info
+ 705      E7800000 
+ 706              	.LVL59:
+ 131:main.c        ****             case 3    : vSlide3(); break;
+ 707              		.loc 1 131 40
+ 131:main.c        ****             case 3    : vSlide3(); break;
+ 708              		.loc 1 131 13 is_stmt 0
+ 709 016c D1BF     		j	.L34
+ 710              	.L26:
+ 132:main.c        ****             case 30   : vSlide3Info(); break;
+ 711              		.loc 1 132 25 is_stmt 1
+ 712 016e 97000000 		call	vSlide3
+ 712      E7800000 
+ 713              	.LVL60:
+ 132:main.c        ****             case 30   : vSlide3Info(); break;
+ 714              		.loc 1 132 36
+ 132:main.c        ****             case 30   : vSlide3Info(); break;
+ 715              		.loc 1 132 13 is_stmt 0
+ 716 0176 E9B7     		j	.L34
+ 717              	.L32:
+ 133:main.c        ****             default   : vUsrPos=0; vSlide0();
+ 718              		.loc 1 133 25 is_stmt 1
+ 719 0178 97000000 		call	vSlide3Info
+ 719      E7800000 
+ 720              	.LVL61:
+ 133:main.c        ****             default   : vUsrPos=0; vSlide0();
+ 721              		.loc 1 133 40
+ 133:main.c        ****             default   : vUsrPos=0; vSlide0();
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 21
+
+
+ 722              		.loc 1 133 13 is_stmt 0
+ 723 0180 C1B7     		j	.L34
+ 724              		.cfi_endproc
+ 725              	.LFE2:
+ 727              		.section	.rodata
+ 728              		.align	2
+ 729              		.set	.LANCHOR0,. + 0
+ 730              	.LC0:
+ 731 0000 01000000 		.word	1
+ 732 0004 04000000 		.word	4
+ 733 0008 07000000 		.word	7
+ 734 000c 0E000000 		.word	14
+ 735 0010 02000000 		.word	2
+ 736 0014 05000000 		.word	5
+ 737 0018 08000000 		.word	8
+ 738 001c 00000000 		.word	0
+ 739 0020 03000000 		.word	3
+ 740 0024 06000000 		.word	6
+ 741 0028 09000000 		.word	9
+ 742 002c 0F000000 		.word	15
+ 743 0030 0A000000 		.word	10
+ 744 0034 0B000000 		.word	11
+ 745 0038 0C000000 		.word	12
+ 746 003c 0D000000 		.word	13
+ 747              		.section	.rodata.vSlide0.str1.4,"aMS",@progbits,1
+ 748              		.align	2
+ 749              	.LC2:
+ 750 0000 416C616E 		.string	"Alan Bortoleto"
+ 750      20426F72 
+ 750      746F6C65 
+ 750      746F00
+ 751 000f 00       		.zero	1
+ 752              	.LC3:
+ 753 0010 42656C67 		.string	"Belgium"
+ 753      69756D00 
+ 754              	.LC4:
+ 755 0018 2B333220 		.string	"+32 466 24 60 88"
+ 755      34363620 
+ 755      32342036 
+ 755      30203838 
+ 755      00
+ 756              		.section	.rodata.vSlide1.str1.4,"aMS",@progbits,1
+ 757              		.align	2
+ 758              	.LC5:
+ 759 0000 426C6F6F 		.string	"Bloodtype"
+ 759      64747970 
+ 759      6500
+ 760 000a 0000     		.zero	2
+ 761              	.LC6:
+ 762 000c 426C6F6F 		.string	"Blood medicine"
+ 762      64206D65 
+ 762      64696369 
+ 762      6E6500
+ 763 001b 00       		.zero	1
+ 764              	.LC7:
+ 765 001c 536F6D65 		.string	"Something 3"
+ 765      7468696E 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 22
+
+
+ 765      67203300 
+ 766              		.section	.rodata.vSlide1Info.str1.4,"aMS",@progbits,1
+ 767              		.align	2
+ 768              	.LC8:
+ 769 0000 54686973 		.string	"This is"
+ 769      20697300 
+ 770              	.LC9:
+ 771 0008 536C6964 		.string	"Slide 1"
+ 771      65203100 
+ 772              	.LC10:
+ 773 0010 696E666F 		.string	"info-slide"
+ 773      2D736C69 
+ 773      646500
+ 774              		.section	.rodata.vSlide2.str1.4,"aMS",@progbits,1
+ 775              		.align	2
+ 776              	.LC11:
+ 777 0000 536F6D65 		.string	"Something 4"
+ 777      7468696E 
+ 777      67203400 
+ 778              	.LC12:
+ 779 000c 536F6D65 		.string	"Something 5"
+ 779      7468696E 
+ 779      67203500 
+ 780              	.LC13:
+ 781 0018 536F6D65 		.string	"Something 6"
+ 781      7468696E 
+ 781      67203600 
+ 782              		.section	.rodata.vSlide2Info.str1.4,"aMS",@progbits,1
+ 783              		.align	2
+ 784              	.LC14:
+ 785 0000 54686973 		.string	"This is "
+ 785      20697320 
+ 785      00
+ 786 0009 000000   		.zero	3
+ 787              	.LC15:
+ 788 000c 736C6964 		.string	"slide 2"
+ 788      65203200 
+ 789              		.section	.rodata.vSlide3.str1.4,"aMS",@progbits,1
+ 790              		.align	2
+ 791              	.LC16:
+ 792 0000 536F6D65 		.string	"Something 7"
+ 792      7468696E 
+ 792      67203700 
+ 793              	.LC17:
+ 794 000c 536F6D65 		.string	"Something 8"
+ 794      7468696E 
+ 794      67203800 
+ 795              	.LC18:
+ 796 0018 536F6D65 		.string	"Something 9"
+ 796      7468696E 
+ 796      67203900 
+ 797              		.section	.rodata.vSlide3Info.str1.4,"aMS",@progbits,1
+ 798              		.align	2
+ 799              	.LC19:
+ 800 0000 736C6964 		.string	"slide 3"
+ 800      65203300 
+ 801              		.text
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 23
+
+
+ 802              	.Letext0:
+ 803              		.file 2 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/riscv64-unknown-elf/
+ 804              		.file 3 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/riscv64-unknown-elf/
+ 805              		.file 4 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/lib/gcc/riscv64-unkn
+ 806              		.file 5 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/riscv64-unknown-elf/
+ 807              		.file 6 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/riscv64-unknown-elf/
+ 808              		.file 7 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/riscv64-unknown-elf/
+ 809              		.file 8 "../../firmware/GD32VF103_standard_peripheral/system_gd32vf103.h"
+ 810              		.file 9 "/Users/Kth/Documents/ProjectHealth/toolchain-gd32v-v202-osx/compiler/riscv64-unknown-elf/
+ 811              		.file 10 "lcd.h"
+ 812              		.file 11 "drivers.h"
+ 813              		.file 12 "../../firmware/GD32VF103_standard_peripheral/Include/gd32vf103_eclic.h"
+ 814              		.file 13 "<built-in>"
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 24
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:13     .text.vSlide0:0000000000000000 vSlide0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:17     .text.vSlide0:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:18     .text.vSlide0:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:19     .text.vSlide0:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:21     .text.vSlide0:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:23     .text.vSlide0:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:25     .text.vSlide0:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:27     .text.vSlide0:0000000000000006 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:28     .text.vSlide0:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:30     .text.vSlide0:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:33     .text.vSlide0:0000000000000010 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:42     .text.vSlide0:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:51     .text.vSlide0:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:52     .text.vSlide0:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:53     .text.vSlide0:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:55     .text.vSlide0:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:57     .text.vSlide0:0000000000000046 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:58     .text.vSlide0:0000000000000046 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:64     .text.vSlide0:0000000000000054 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:66     .text.vSlide0:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:68     .text.vSlide0:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:70     .text.vSlide0:000000000000005e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:77     .text.vSlide1:0000000000000000 vSlide1
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:80     .text.vSlide1:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:81     .text.vSlide1:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:82     .text.vSlide1:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:84     .text.vSlide1:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:86     .text.vSlide1:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:88     .text.vSlide1:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:90     .text.vSlide1:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:91     .text.vSlide1:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:93     .text.vSlide1:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:96     .text.vSlide1:0000000000000012 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:105    .text.vSlide1:000000000000002a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:114    .text.vSlide1:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:115    .text.vSlide1:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:116    .text.vSlide1:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:118    .text.vSlide1:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:120    .text.vSlide1:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:121    .text.vSlide1:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:127    .text.vSlide1:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:129    .text.vSlide1:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:131    .text.vSlide1:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:133    .text.vSlide1:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:140    .text.vSlide1Info:0000000000000000 vSlide1Info
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:143    .text.vSlide1Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:144    .text.vSlide1Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:145    .text.vSlide1Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:147    .text.vSlide1Info:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:149    .text.vSlide1Info:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:151    .text.vSlide1Info:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:153    .text.vSlide1Info:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:154    .text.vSlide1Info:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:156    .text.vSlide1Info:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:159    .text.vSlide1Info:0000000000000012 .L0 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 25
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:168    .text.vSlide1Info:000000000000002a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:177    .text.vSlide1Info:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:178    .text.vSlide1Info:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:179    .text.vSlide1Info:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:181    .text.vSlide1Info:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:183    .text.vSlide1Info:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:184    .text.vSlide1Info:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:190    .text.vSlide1Info:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:192    .text.vSlide1Info:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:194    .text.vSlide1Info:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:196    .text.vSlide1Info:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:203    .text.vSlide2:0000000000000000 vSlide2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:206    .text.vSlide2:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:207    .text.vSlide2:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:208    .text.vSlide2:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:210    .text.vSlide2:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:212    .text.vSlide2:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:214    .text.vSlide2:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:216    .text.vSlide2:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:217    .text.vSlide2:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:219    .text.vSlide2:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:222    .text.vSlide2:0000000000000012 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:231    .text.vSlide2:000000000000002a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:240    .text.vSlide2:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:241    .text.vSlide2:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:242    .text.vSlide2:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:244    .text.vSlide2:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:246    .text.vSlide2:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:247    .text.vSlide2:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:253    .text.vSlide2:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:255    .text.vSlide2:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:257    .text.vSlide2:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:259    .text.vSlide2:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:266    .text.vSlide2Info:0000000000000000 vSlide2Info
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:269    .text.vSlide2Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:270    .text.vSlide2Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:271    .text.vSlide2Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:273    .text.vSlide2Info:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:275    .text.vSlide2Info:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:277    .text.vSlide2Info:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:279    .text.vSlide2Info:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:280    .text.vSlide2Info:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:282    .text.vSlide2Info:000000000000000a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:285    .text.vSlide2Info:0000000000000012 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:294    .text.vSlide2Info:000000000000002a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:303    .text.vSlide2Info:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:304    .text.vSlide2Info:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:305    .text.vSlide2Info:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:307    .text.vSlide2Info:0000000000000044 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:309    .text.vSlide2Info:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:310    .text.vSlide2Info:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:316    .text.vSlide2Info:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:318    .text.vSlide2Info:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:320    .text.vSlide2Info:0000000000000058 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:322    .text.vSlide2Info:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:329    .text.vSlide3:0000000000000000 vSlide3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:332    .text.vSlide3:0000000000000000 .L0 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 26
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:333    .text.vSlide3:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:334    .text.vSlide3:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:336    .text.vSlide3:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:338    .text.vSlide3:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:340    .text.vSlide3:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:342    .text.vSlide3:0000000000000006 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:343    .text.vSlide3:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:345    .text.vSlide3:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:348    .text.vSlide3:0000000000000010 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:357    .text.vSlide3:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:366    .text.vSlide3:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:367    .text.vSlide3:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:368    .text.vSlide3:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:370    .text.vSlide3:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:372    .text.vSlide3:0000000000000046 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:373    .text.vSlide3:0000000000000046 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:379    .text.vSlide3:0000000000000054 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:381    .text.vSlide3:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:383    .text.vSlide3:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:385    .text.vSlide3:000000000000005e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:392    .text.vSlide3Info:0000000000000000 vSlide3Info
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:395    .text.vSlide3Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:396    .text.vSlide3Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:397    .text.vSlide3Info:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:399    .text.vSlide3Info:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:401    .text.vSlide3Info:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:403    .text.vSlide3Info:0000000000000004 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:405    .text.vSlide3Info:0000000000000006 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:406    .text.vSlide3Info:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:408    .text.vSlide3Info:0000000000000008 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:411    .text.vSlide3Info:0000000000000010 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:420    .text.vSlide3Info:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:429    .text.vSlide3Info:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:430    .text.vSlide3Info:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:431    .text.vSlide3Info:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:433    .text.vSlide3Info:0000000000000042 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:435    .text.vSlide3Info:0000000000000046 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:436    .text.vSlide3Info:0000000000000046 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:442    .text.vSlide3Info:0000000000000054 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:444    .text.vSlide3Info:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:446    .text.vSlide3Info:0000000000000056 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:448    .text.vSlide3Info:000000000000005e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:455    .text.startup.main:0000000000000000 main
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:458    .text.startup.main:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:459    .text.startup.main:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:461    .text.startup.main:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:462    .text.startup.main:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:463    .text.startup.main:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:465    .text.startup.main:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:467    .text.startup.main:0000000000000002 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:472    .text.startup.main:0000000000000010 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:484    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:485    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:486    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:487    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:488    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:489    .text.startup.main:0000000000000028 .L0 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 27
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:490    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:491    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:492    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:493    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:494    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:495    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:497    .text.startup.main:0000000000000028 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:500    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:501    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:502    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:503    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:504    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:505    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:506    .text.startup.main:0000000000000030 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:509    .text.startup.main:0000000000000038 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:512    .text.startup.main:0000000000000040 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:515    .text.startup.main:0000000000000048 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:518    .text.startup.main:0000000000000050 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:522    .text.startup.main:000000000000005a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:525    .text.startup.main:0000000000000062 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:530    .text.startup.main:0000000000000070 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:531    .text.startup.main:0000000000000070 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:533    .text.startup.main:0000000000000072 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:536    .text.startup.main:000000000000007a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:538    .text.startup.main:000000000000007c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:540    .text.startup.main:000000000000007e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:542    .text.startup.main:0000000000000080 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:544    .text.startup.main:0000000000000082 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:546    .text.startup.main:0000000000000084 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:548    .text.startup.main:0000000000000086 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:554    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:555    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:556    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:557    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:558    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:559    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:560    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:561    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:562    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:563    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:564    .text.startup.main:000000000000008c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:567    .text.startup.main:0000000000000094 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:569    .text.startup.main:0000000000000096 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:574    .text.startup.main:00000000000000a6 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:575    .text.startup.main:00000000000000a6 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:580    .text.startup.main:00000000000000b2 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:581    .text.startup.main:00000000000000b2 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:586    .text.startup.main:00000000000000bc .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:588    .text.startup.main:00000000000000c0 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:589    .text.startup.main:00000000000000c0 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:592    .text.startup.main:00000000000000c2 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:594    .text.startup.main:00000000000000c6 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:598    .text.startup.main:00000000000000c8 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:599    .text.startup.main:00000000000000c8 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:604    .text.startup.main:00000000000000d4 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:606    .text.startup.main:00000000000000d8 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:612    .text.startup.main:00000000000000e4 .L0 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 28
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:613    .text.startup.main:00000000000000e4 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:615    .text.startup.main:00000000000000e8 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:616    .text.startup.main:00000000000000e8 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:617    .text.startup.main:00000000000000e8 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:619    .text.startup.main:00000000000000ec .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:620    .text.startup.main:00000000000000ec .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:624    .text.startup.main:00000000000000ee .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:625    .text.startup.main:00000000000000ee .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:631    .text.startup.main:0000000000000100 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:634    .text.startup.main:0000000000000108 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:635    .text.startup.main:0000000000000108 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:638    .text.startup.main:000000000000010a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:639    .text.startup.main:000000000000010a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:641    .text.startup.main:000000000000010e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:642    .text.startup.main:000000000000010e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:643    .text.startup.main:000000000000010e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:645    .text.startup.main:0000000000000112 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:646    .text.startup.main:0000000000000112 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:651    .text.startup.main:0000000000000118 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:652    .text.startup.main:0000000000000118 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:654    .text.startup.main:000000000000011c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:655    .text.startup.main:000000000000011c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:656    .text.startup.main:000000000000011c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:658    .text.startup.main:0000000000000120 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:659    .text.startup.main:0000000000000120 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:664    .text.startup.main:0000000000000124 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:665    .text.startup.main:0000000000000124 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:670    .text.startup.main:000000000000012a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:675    .text.startup.main:0000000000000136 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:678    .text.startup.main:000000000000013e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:679    .text.startup.main:000000000000013e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:683    .text.startup.main:0000000000000140 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:691    .text.startup.main:0000000000000150 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:694    .text.startup.main:0000000000000158 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:695    .text.startup.main:0000000000000158 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:698    .text.startup.main:000000000000015a .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:701    .text.startup.main:0000000000000162 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:702    .text.startup.main:0000000000000162 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:705    .text.startup.main:0000000000000164 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:708    .text.startup.main:000000000000016c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:709    .text.startup.main:000000000000016c .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:712    .text.startup.main:000000000000016e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:715    .text.startup.main:0000000000000176 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:716    .text.startup.main:0000000000000176 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:719    .text.startup.main:0000000000000178 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:722    .text.startup.main:0000000000000180 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:723    .text.startup.main:0000000000000180 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:724    .text.startup.main:0000000000000182 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:729    .rodata:0000000000000000 .LANCHOR0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:73     .text.vSlide0:000000000000005e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:136    .text.vSlide1:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:199    .text.vSlide1Info:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:262    .text.vSlide2:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:325    .text.vSlide2Info:0000000000000060 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:388    .text.vSlide3:000000000000005e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:451    .text.vSlide3Info:000000000000005e .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:727    .text.startup.main:0000000000000182 .L0 
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 29
+
+
+                     .debug_frame:0000000000000000 .L0 
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:749    .rodata.vSlide0.str1.4:0000000000000000 .LC2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:752    .rodata.vSlide0.str1.4:0000000000000010 .LC3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:754    .rodata.vSlide0.str1.4:0000000000000018 .LC4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:758    .rodata.vSlide1.str1.4:0000000000000000 .LC5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:761    .rodata.vSlide1.str1.4:000000000000000c .LC6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:764    .rodata.vSlide1.str1.4:000000000000001c .LC7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:768    .rodata.vSlide1Info.str1.4:0000000000000000 .LC8
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:770    .rodata.vSlide1Info.str1.4:0000000000000008 .LC9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:772    .rodata.vSlide1Info.str1.4:0000000000000010 .LC10
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:776    .rodata.vSlide2.str1.4:0000000000000000 .LC11
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:778    .rodata.vSlide2.str1.4:000000000000000c .LC12
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:780    .rodata.vSlide2.str1.4:0000000000000018 .LC13
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:784    .rodata.vSlide2Info.str1.4:0000000000000000 .LC14
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:787    .rodata.vSlide2Info.str1.4:000000000000000c .LC15
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:791    .rodata.vSlide3.str1.4:0000000000000000 .LC16
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:793    .rodata.vSlide3.str1.4:000000000000000c .LC17
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:795    .rodata.vSlide3.str1.4:0000000000000018 .LC18
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:799    .rodata.vSlide3Info.str1.4:0000000000000000 .LC19
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:552    .text.startup.main:000000000000008c .L16
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:596    .text.startup.main:00000000000000c8 .L18
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:636    .text.startup.main:000000000000010a .L19
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:662    .text.startup.main:0000000000000124 .L25
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:710    .text.startup.main:000000000000016e .L26
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:668    .text.startup.main:000000000000012a .L27
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:689    .text.startup.main:0000000000000150 .L28
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:673    .text.startup.main:0000000000000136 .L30
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:681    .text.startup.main:0000000000000140 .L34
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:649    .text.startup.main:0000000000000118 .L22
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:622    .text.startup.main:00000000000000ee .L24
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:703    .text.startup.main:0000000000000164 .L31
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:717    .text.startup.main:0000000000000178 .L32
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:696    .text.startup.main:000000000000015a .L33
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:3560   .debug_abbrev:0000000000000000 .Ldebug_abbrev0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4796   .debug_str:0000000000000539 .LASF157
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4674   .debug_str:000000000000030d .LASF158
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4596   .debug_str:0000000000000150 .LASF159
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4506   .debug_ranges:0000000000000000 .Ldebug_ranges0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4526   .debug_line:0000000000000000 .Ldebug_line0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4784   .debug_str:00000000000004fd .LASF0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4568   .debug_str:00000000000000d9 .LASF1
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4718   .debug_str:00000000000003db .LASF2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4530   .debug_str:000000000000000c .LASF3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4800   .debug_str:00000000000005c8 .LASF4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4540   .debug_str:000000000000003a .LASF5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4648   .debug_str:0000000000000293 .LASF9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4646   .debug_str:0000000000000281 .LASF6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4598   .debug_str:00000000000001a4 .LASF7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4548   .debug_str:000000000000006e .LASF8
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4812   .debug_str:000000000000060f .LASF10
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4640   .debug_str:0000000000000261 .LASF120
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4772   .debug_str:00000000000004ce .LASF11
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4706   .debug_str:00000000000003a5 .LASF12
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4564   .debug_str:00000000000000cb .LASF13
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4770   .debug_str:00000000000004c6 .LASF14
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4820   .debug_str:0000000000000630 .LASF15
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4670   .debug_str:0000000000000300 .LASF16
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 30
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4638   .debug_str:000000000000025a .LASF17
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4762   .debug_str:00000000000004a6 .LASF18
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4764   .debug_str:00000000000004ae .LASF19
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4738   .debug_str:0000000000000431 .LASF20
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4806   .debug_str:00000000000005e7 .LASF21
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4712   .debug_str:00000000000003bb .LASF22
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4726   .debug_str:0000000000000401 .LASF23
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4626   .debug_str:0000000000000228 .LASF28
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4792   .debug_str:0000000000000526 .LASF24
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4756   .debug_str:0000000000000491 .LASF25
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4620   .debug_str:000000000000020e .LASF26
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4816   .debug_str:0000000000000625 .LASF27
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4636   .debug_str:0000000000000255 .LASF29
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4560   .debug_str:00000000000000bb .LASF30
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4838   .debug_str:0000000000000687 .LASF31
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4576   .debug_str:00000000000000fb .LASF32
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4854   .debug_str:00000000000006c5 .LASF33
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4694   .debug_str:0000000000000363 .LASF34
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4686   .debug_str:000000000000033d .LASF35
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4768   .debug_str:00000000000004bc .LASF36
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4728   .debug_str:000000000000040a .LASF37
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4834   .debug_str:000000000000066d .LASF38
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4580   .debug_str:000000000000010a .LASF39
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4532   .debug_str:0000000000000016 .LASF40
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4528   .debug_str:0000000000000000 .LASF41
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4786   .debug_str:000000000000050a .LASF42
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4592   .debug_str:0000000000000141 .LASF43
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4696   .debug_str:000000000000036c .LASF44
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4654   .debug_str:00000000000002ab .LASF45
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4664   .debug_str:00000000000002e6 .LASF46
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4730   .debug_str:0000000000000414 .LASF47
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4716   .debug_str:00000000000003d5 .LASF48
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4782   .debug_str:00000000000004f7 .LASF49
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4740   .debug_str:000000000000043c .LASF50
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4590   .debug_str:000000000000013a .LASF51
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4650   .debug_str:000000000000029e .LASF52
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4550   .debug_str:0000000000000085 .LASF53
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4584   .debug_str:0000000000000120 .LASF54
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4632   .debug_str:0000000000000245 .LASF55
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4684   .debug_str:0000000000000336 .LASF56
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4766   .debug_str:00000000000004b6 .LASF57
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4566   .debug_str:00000000000000d2 .LASF58
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4570   .debug_str:00000000000000e5 .LASF59
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4828   .debug_str:0000000000000659 .LASF60
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4630   .debug_str:000000000000023c .LASF61
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4604   .debug_str:00000000000001c2 .LASF62
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4656   .debug_str:00000000000002b0 .LASF63
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4680   .debug_str:000000000000032a .LASF64
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4742   .debug_str:0000000000000444 .LASF65
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4732   .debug_str:000000000000041b .LASF66
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4758   .debug_str:0000000000000499 .LASF67
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4774   .debug_str:00000000000004da .LASF68
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4594   .debug_str:0000000000000149 .LASF69
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4642   .debug_str:0000000000000271 .LASF70
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4624   .debug_str:0000000000000220 .LASF71
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4746   .debug_str:0000000000000459 .LASF72
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4536   .debug_str:0000000000000026 .LASF73
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 31
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4754   .debug_str:0000000000000478 .LASF74
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4750   .debug_str:0000000000000466 .LASF75
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4702   .debug_str:000000000000038b .LASF76
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4752   .debug_str:000000000000046e .LASF77
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4668   .debug_str:00000000000002f8 .LASF78
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4634   .debug_str:000000000000024b .LASF79
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4848   .debug_str:00000000000006b6 .LASF80
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4710   .debug_str:00000000000003b1 .LASF81
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4644   .debug_str:0000000000000279 .LASF82
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4602   .debug_str:00000000000001ba .LASF83
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4676   .debug_str:0000000000000314 .LASF84
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4538   .debug_str:0000000000000031 .LASF85
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4824   .debug_str:0000000000000643 .LASF86
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4586   .debug_str:0000000000000128 .LASF87
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4578   .debug_str:0000000000000105 .LASF88
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4776   .debug_str:00000000000004e1 .LASF89
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4736   .debug_str:000000000000042a .LASF90
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4818   .debug_str:000000000000062a .LASF91
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4658   .debug_str:00000000000002b6 .LASF92
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4722   .debug_str:00000000000003f2 .LASF93
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4534   .debug_str:000000000000001e .LASF94
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4760   .debug_str:00000000000004a0 .LASF95
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4682   .debug_str:0000000000000330 .LASF96
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4802   .debug_str:00000000000005db .LASF97
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4814   .debug_str:0000000000000618 .LASF98
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4794   .debug_str:000000000000052c .LASF99
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4666   .debug_str:00000000000002eb .LASF100
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4836   .debug_str:0000000000000678 .LASF101
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4704   .debug_str:0000000000000396 .LASF102
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4662   .debug_str:00000000000002db .LASF103
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4840   .debug_str:0000000000000690 .LASF104
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4700   .debug_str:000000000000037e .LASF105
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4846   .debug_str:00000000000006a8 .LASF106
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4558   .debug_str:00000000000000ad .LASF107
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4822   .debug_str:0000000000000639 .LASF108
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4778   .debug_str:00000000000004e6 .LASF109
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4808   .debug_str:00000000000005ef .LASF110
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4608   .debug_str:00000000000001db .LASF111
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4556   .debug_str:000000000000009e .LASF112
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4606   .debug_str:00000000000001ca .LASF113
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4542   .debug_str:0000000000000043 .LASF114
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4544   .debug_str:0000000000000052 .LASF115
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4724   .debug_str:00000000000003f8 .LASF116
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4690   .debug_str:0000000000000350 .LASF117
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4688   .debug_str:0000000000000347 .LASF118
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4830   .debug_str:000000000000065f .LASF119
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4552   .debug_str:000000000000008e .LASF160
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4622   .debug_str:0000000000000214 .LASF121
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4810   .debug_str:00000000000005fc .LASF122
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4698   .debug_str:0000000000000374 .LASF123
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4546   .debug_str:0000000000000063 .LASF124
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4692   .debug_str:0000000000000357 .LASF125
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:393    .text.vSlide3Info:0000000000000000 .LFB9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:449    .text.vSlide3Info:000000000000005e .LFE9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4266   .debug_loc:0000000000000000 .LLST6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:409    .text.vSlide3Info:0000000000000010 .LVL24
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:418    .text.vSlide3Info:0000000000000028 .LVL25
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 32
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:427    .text.vSlide3Info:0000000000000040 .LVL26
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:447    .text.vSlide3Info:000000000000005e .LVL27
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4618   .debug_str:0000000000000206 .LASF126
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:330    .text.vSlide3:0000000000000000 .LFB8
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:386    .text.vSlide3:000000000000005e .LFE8
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4284   .debug_loc:000000000000002c .LLST5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:346    .text.vSlide3:0000000000000010 .LVL20
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:355    .text.vSlide3:0000000000000028 .LVL21
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:364    .text.vSlide3:0000000000000040 .LVL22
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:384    .text.vSlide3:000000000000005e .LVL23
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4826   .debug_str:000000000000064d .LASF127
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:267    .text.vSlide2Info:0000000000000000 .LFB7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:323    .text.vSlide2Info:0000000000000060 .LFE7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4302   .debug_loc:0000000000000058 .LLST4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:283    .text.vSlide2Info:0000000000000012 .LVL16
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:292    .text.vSlide2Info:000000000000002a .LVL17
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:301    .text.vSlide2Info:0000000000000042 .LVL18
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:321    .text.vSlide2Info:0000000000000060 .LVL19
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4616   .debug_str:00000000000001fe .LASF128
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:204    .text.vSlide2:0000000000000000 .LFB6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:260    .text.vSlide2:0000000000000060 .LFE6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4320   .debug_loc:0000000000000084 .LLST3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:220    .text.vSlide2:0000000000000012 .LVL12
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:229    .text.vSlide2:000000000000002a .LVL13
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:238    .text.vSlide2:0000000000000042 .LVL14
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:258    .text.vSlide2:0000000000000060 .LVL15
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4628   .debug_str:0000000000000230 .LASF129
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:141    .text.vSlide1Info:0000000000000000 .LFB5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:197    .text.vSlide1Info:0000000000000060 .LFE5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4338   .debug_loc:00000000000000b0 .LLST2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:157    .text.vSlide1Info:0000000000000012 .LVL8
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:166    .text.vSlide1Info:000000000000002a .LVL9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:175    .text.vSlide1Info:0000000000000042 .LVL10
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:195    .text.vSlide1Info:0000000000000060 .LVL11
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4614   .debug_str:00000000000001f6 .LASF130
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:78     .text.vSlide1:0000000000000000 .LFB4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:134    .text.vSlide1:0000000000000060 .LFE4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4356   .debug_loc:00000000000000dc .LLST1
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:94     .text.vSlide1:0000000000000012 .LVL4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:103    .text.vSlide1:000000000000002a .LVL5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:112    .text.vSlide1:0000000000000042 .LVL6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:132    .text.vSlide1:0000000000000060 .LVL7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4612   .debug_str:00000000000001ee .LASF131
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:14     .text.vSlide0:0000000000000000 .LFB3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:71     .text.vSlide0:000000000000005e .LFE3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4374   .debug_loc:0000000000000108 .LLST0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:31     .text.vSlide0:0000000000000010 .LVL0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:40     .text.vSlide0:0000000000000028 .LVL1
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:49     .text.vSlide0:0000000000000040 .LVL2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:69     .text.vSlide0:000000000000005e .LVL3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4852   .debug_str:00000000000006c0 .LASF161
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:456    .text.startup.main:0000000000000000 .LFB2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:725    .text.startup.main:0000000000000182 .LFE2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4392   .debug_loc:0000000000000134 .LLST7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4405   .debug_loc:0000000000000155 .LLST8
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4413   .debug_loc:0000000000000169 .LLST9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4554   .debug_str:0000000000000099 .LASF132
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 33
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4424   .debug_loc:0000000000000187 .LLST10
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4445   .debug_loc:00000000000001bd .LLST11
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4708   .debug_str:00000000000003ac .LASF133
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4842   .debug_str:0000000000000695 .LASF134
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4832   .debug_str:0000000000000667 .LASF135
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4850   .debug_str:00000000000006bb .LASF136
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4610   .debug_str:00000000000001e9 .LASF137
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4798   .debug_str:00000000000005c1 .LASF138
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4780   .debug_str:00000000000004f2 .LASF139
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4720   .debug_str:00000000000003e9 .LASF140
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4748   .debug_str:000000000000045e .LASF141
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4467   .debug_loc:00000000000001f4 .LLST13
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4600   .debug_str:00000000000001b2 .LASF142
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:498    .text.startup.main:0000000000000030 .LVL29
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:507    .text.startup.main:0000000000000038 .LVL30
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:510    .text.startup.main:0000000000000040 .LVL31
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:513    .text.startup.main:0000000000000048 .LVL32
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:516    .text.startup.main:0000000000000050 .LVL33
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:520    .text.startup.main:000000000000005a .LVL34
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:523    .text.startup.main:0000000000000062 .LVL35
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:528    .text.startup.main:0000000000000070 .LVL36
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:534    .text.startup.main:000000000000007a .LVL37
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:565    .text.startup.main:0000000000000094 .LVL39
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:570    .text.startup.main:000000000000009e .LVL40
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:572    .text.startup.main:00000000000000a6 .LVL41
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:578    .text.startup.main:00000000000000b2 .LVL42
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:582    .text.startup.main:00000000000000ba .LVL43
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:610    .text.startup.main:00000000000000e4 .LVL48
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:632    .text.startup.main:0000000000000108 .LVL50
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:676    .text.startup.main:000000000000013e .LVL54
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:686    .text.startup.main:000000000000014c .LVL56
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:692    .text.startup.main:0000000000000158 .LVL57
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:699    .text.startup.main:0000000000000162 .LVL58
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:706    .text.startup.main:000000000000016c .LVL59
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:713    .text.startup.main:0000000000000176 .LVL60
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:720    .text.startup.main:0000000000000180 .LVL61
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4588   .debug_str:0000000000000130 .LASF143
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4790   .debug_str:000000000000051a .LASF144
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4672   .debug_str:0000000000000306 .LASF162
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4678   .debug_str:0000000000000319 .LASF163
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4804   .debug_str:00000000000005e0 .LASF145
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4582   .debug_str:0000000000000118 .LASF146
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4714   .debug_str:00000000000003cd .LASF147
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4572   .debug_str:00000000000000eb .LASF148
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4744   .debug_str:000000000000044d .LASF149
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4844   .debug_str:000000000000069f .LASF150
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4660   .debug_str:00000000000002bd .LASF151
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4734   .debug_str:0000000000000423 .LASF152
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4562   .debug_str:00000000000000c4 .LASF153
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4788   .debug_str:0000000000000513 .LASF154
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4652   .debug_str:00000000000002a4 .LASF155
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:4574   .debug_str:00000000000000f3 .LASF156
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:400    .text.vSlide3Info:0000000000000004 .LCFI12
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:443    .text.vSlide3Info:0000000000000056 .LCFI13
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:337    .text.vSlide3:0000000000000004 .LCFI10
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:380    .text.vSlide3:0000000000000056 .LCFI11
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:274    .text.vSlide2Info:0000000000000004 .LCFI8
+GAS LISTING /var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s 			page 34
+
+
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:317    .text.vSlide2Info:0000000000000058 .LCFI9
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:211    .text.vSlide2:0000000000000004 .LCFI6
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:254    .text.vSlide2:0000000000000058 .LCFI7
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:148    .text.vSlide1Info:0000000000000004 .LCFI4
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:191    .text.vSlide1Info:0000000000000058 .LCFI5
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:85     .text.vSlide1:0000000000000004 .LCFI2
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:128    .text.vSlide1:0000000000000058 .LCFI3
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:22     .text.vSlide0:0000000000000004 .LCFI0
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:65     .text.vSlide0:0000000000000056 .LCFI1
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:464    .text.startup.main:0000000000000002 .LCFI14
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:460    .text.startup.main:0000000000000000 .LVL28
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:551    .text.startup.main:000000000000008c .LVL38
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:584    .text.startup.main:00000000000000bc .LVL44
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:607    .text.startup.main:00000000000000da .LVL47
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:595    .text.startup.main:00000000000000c8 .LVL46
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:590    .text.startup.main:00000000000000c2 .LVL45
+/var/folders/8w/t9tl03g11tjcsx9gvmlb3gyc0000gp/T//cco9U7Ui.s:816    .debug_info:0000000000000000 .Ldebug_info0
+
+UNDEFINED SYMBOLS
+LCD_Clear
+LCD_ShowStr
+memcpy
+t5omsi
+colinit
+l88init
+keyinit
+Lcd_SetType
+Lcd_Init
+eclic_global_interrupt_enable
+t5expq
+colset
+l88row
+l88mem
+keyscan
