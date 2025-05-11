@@ -1,5 +1,5 @@
 ###### GD32V Makefile ######
-
+#-include $(wildcard .deps/*.d)
 
 ######################################
 # target
@@ -10,7 +10,7 @@ DEBUG_TARGET = gd32vf103_debug
 # Flashing
 ######################################
 
-DFU_DIR = 
+DFU_DIR = ../../programmer/
 
 
 ######################################
@@ -24,7 +24,7 @@ OPT = -Os #-flto
 # Build path
 BUILD_DIR = build
 
-FIRMWARE_DIR := ../../firmware
+FIRMWARE_DIR := ./../../firmware
 SYSTEM_CLOCK := 8000000U
 
 ######################################
@@ -173,7 +173,7 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
 	@echo "LD $@"
 	@$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 	@echo "OD $@"
-	@$(OD) $(BUILD_DIR)/$(TARGET).elf -xS > $(BUILD_DIR)/$(TARGET).S $@
+	-@$(OD) $(BUILD_DIR)/$(TARGET).elf -xS > $(BUILD_DIR)/$(TARGET).S $@
 	@echo "SIZE $@"
 	@$(SZ) $@
 
@@ -181,7 +181,7 @@ $(BUILD_DIR)/$(DEBUG_TARGET).elf: $(DEBUG_OBJECTS) Makefile
 	@echo "LD $@"
 	@$(CC) $(DEBUG_OBJECTS) $(LDFLAGS) -o $@
 	@echo "OD $@"
-	@$(OD) $(BUILD_DIR)/$(DEBUG_TARGET).elf -xS > $(BUILD_DIR)/$(DEBUG_TARGET).S $@
+	-@$(OD) $(BUILD_DIR)/$(DEBUG_TARGET).elf -xS > $(BUILD_DIR)/$(DEBUG_TARGET).S $@
 	@echo "SIZE $@"
 	@$(SZ) $@
 	
@@ -205,7 +205,8 @@ $(BUILD_DIR):
 #######################################
 
 clean:
-	-rm -fR .deps $(BUILD_DIR)
+	-del /Q .deps
+	-del /Q $(BUILD_DIR)
 
 .PHONY: debug_clean
 debug_clean:
@@ -213,30 +214,15 @@ debug_clean:
 
 dfu: all
 	-$(DFU_DIR)dfu-suffix -v 0x28e9 -p 0x0189 -d 0xffff -a $(BUILD_DIR)/$(TARGET).bin
-	$(DFU_DIR)dfu-util -d 28e9:0189 -a 0 --dfuse-address 0x08000000:leave -D $(BUILD_DIR)/$(TARGET).bin
+	$(DFU_DIR)dfu-util-static -d :0189 -a 0 --dfuse-address 0x08000000:leave -D $(BUILD_DIR)/$(TARGET).bin
 
 download: debug
 	-$(DFU_DIR)dfu-suffix -v 0x28e9 -p 0x0189 -d 0xffff -a $(BUILD_DIR)/$(DEBUG_TARGET).bin
-	$(DFU_DIR)dfu-util -d 28e9:0189 -a 0 --dfuse-address 0x08000000:leave -D $(BUILD_DIR)/$(DEBUG_TARGET).bin
+	$(DFU_DIR)dfu-util-static -d :0189 -a 0 --dfuse-address 0x08000000:leave -D $(BUILD_DIR)/$(DEBUG_TARGET).bin
 
-# Run once to clear the compiler binaries for running, and installing the programming tool
-install:
-	xattr -d com.apple.quarantine ../../compiler/bin/riscv64-unknown-elf-gcc
-	xattr -d com.apple.quarantine ../../compiler/libexec/gcc/riscv64-unknown-elf/8.3.0/cc1
-	xattr -d com.apple.quarantine ../../compiler/riscv64-unknown-elf/bin/as
-	xattr -d com.apple.quarantine ../../compiler/libexec/gcc/riscv64-unknown-elf/8.3.0/collect2
-	xattr -d com.apple.quarantine ../../compiler/riscv64-unknown-elf/bin/ld
-	xattr -d com.apple.quarantine ../../compiler/libexec/gcc/riscv64-unknown-elf/8.3.0/liblto_plugin.so
-	xattr -d com.apple.quarantine ../../compiler/bin/riscv64-unknown-elf-gdb
-	xattr -d com.apple.quarantine ../../compiler/bin/riscv64-unknown-elf-objdump
-	xattr -d com.apple.quarantine ../../compiler/bin/riscv64-unknown-elf-objcopy
-	xattr -d com.apple.quarantine ../../compiler/bin/riscv64-unknown-elf-size
-	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-	brew install dfu-util
 
 #######################################
 # dependencies
 #######################################
--include $(shell mkdir .deps 2>/dev/null) $(wildcard .deps/*)
 
 # *** EOF ***

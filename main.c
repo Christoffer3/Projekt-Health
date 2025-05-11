@@ -1,47 +1,76 @@
 #include "gd32vf103.h"
-#include "drivers.h"
-#include "lcd.h"
+#include "gd32vf103v_eval.h" // Include the header file for LED definitions
 
-int main(void){
-    int ms=0, s=0, key, pKey=-1, c=0, idle=0;
-    int lookUpTbl[16]={1,4,7,14,2,5,8,0,3,6,9,15,10,11,12,13};
-    int dac=0, speed=-100;
-    int adcr, tmpr;
-    char digits[10][10]={"Zero ","One  ","Two  ","Three","Four ","Five ","Six  ","Seven","Eight","Nine "};
-    char ch[]={126, 127};
-    t5omsi();                               // Initialize timer5 1kHz
-    colinit();                              // Initialize column toolbox
-    l88init();                              // Initialize 8*8 led toolbox
-    keyinit();                              // Initialize keyboard toolbox
-    Lcd_SetType(LCD_NORMAL);//INVERTED);                // or use LCD_INVERTED!
-    Lcd_Init();
-    LCD_Clear(RED);
-    LCD_ShowStr(10, 10, "Icon/art template", WHITE, TRANSPARENT);
-    LCD_Fill(10,30, 20, 40, BLUE);
+#include <string.h>
 
+#define FLASH_PAGE_SIZE      ((uint16_t)0x400U)           // 1 KB
+#define FLASH_ADDR_START     ((uint32_t)0x0800FC00U)      // Sista sida i 64KB flash
+#define MAX_STR_LEN          64                           // Max stränglängd
 
-    while (1) {
-        idle++;                             // Manage Async events
-        LCD_WR_Queue();                     // Manage LCD com queue!
+char saved_message[MAX_STR_LEN] = "HELLO!";
+char loaded_message[MAX_STR_LEN];
 
-        if (t5expq()) {                     // Manage periodic tasks
-            l88row(colset());               // ...8*8LED and Keyboard
-            ms++;                           // ...One second heart beat
-            //LCD_ShowStr(10, 50, "*", WHITE, OPAQUE);
-            //LCD_DrawPoint(10,50,GREEN);
-            if (ms==1000){
-              ms=0;
-              l88mem(0,s++);
-              //LCD_ShowStr(10, 30, digits[s%10], WHITE, OPAQUE);
-              LCD_ShowChar(10, 50, ch[0], OPAQUE, WHITE);
-              LCD_ShowChar(30, 50, ch[1], OPAQUE, WHITE);
-            }
-            if ((key=keyscan())>=0) {       // ...Any key pressed?
-              if (pKey==key) c++; else {c=0; pKey=key;}
-              l88mem(1,lookUpTbl[key]+(c<<4));
-            }
-            l88mem(2,idle>>8);              // ...Performance monitor
-            l88mem(3,idle); idle=0;
-        }
+// 🧽 Radera en flashsida
+void flash_erase_page(uint32_t address) {
+    fmc_unlock();
+    fmc_flag_clear(FMC_FLAG_END | FMC_FLAG_PGERR | FMC_FLAG_WPERR);
+    fmc_page_erase(address);
+    while(fmc_flag_get(FMC_FLAG_END) == RESET);
+    fmc_flag_clear(FMC_FLAG_END);
+    fmc_lock();
+}
+
+// 💾 Spara sträng till flash
+void flash_save_string(const char* str) {
+    uint32_t len = strlen(str);
+    uint32_t word = 0;
+    uint32_t i;
+
+    flash_erase_page(FLASH_ADDR_START);
+    fmc_unlock();
+
+    for (i = 0; i < len; i += 4) {
+        word = 0xFFFFFFFF;
+        memcpy(&word, str + i, (len - i >= 4) ? 4 : len - i);
+        fmc_word_program(FLASH_ADDR_START + i, word);
+        while(fmc_flag_get(FMC_FLAG_END) == RESET);
+        fmc_flag_clear(FMC_FLAG_END);
     }
+
+    fmc_lock();
+}
+
+// 📖 Läs sträng från flash
+void flash_read_string(char* buffer, uint32_t max_len) {
+    const char* flash_ptr = (const char*)FLASH_ADDR_START;
+    uint32_t i = 0;
+
+    while (i < max_len - 1 && flash_ptr[i] != '\0' && flash_ptr[i] != (char)0xFF) {
+        buffer[i] = flash_ptr[i];
+        i++;
+    }
+    buffer[i] = '\0';
+}
+
+int main(void) {
+    gd_eval_led_init(LED2);
+    gd_eval_led_init(LED3);
+
+    // 📝 Läs sparad sträng från flash
+    flash_read_string(loaded_message, MAX_STR_LEN);
+
+    // Om inget är sparat – spara ny data
+    if (strlen(loaded_message) == 0 || strcmp(loaded_message, saved_message) != 0) {
+        flash_save_string(saved_message);
+        flash_read_string(loaded_message, MAX_STR_LEN);
+    }
+
+    // ✅ Kontroll – är det vi läst samma som vi ville spara?
+    if (strcmp(loaded_message, saved_message) == 0) {
+        gd_eval_led_on(LED2); // OK
+    } else {
+        gd_eval_led_on(LED3); // FEL
+    }
+
+    while (1);
 }
