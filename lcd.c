@@ -49,8 +49,7 @@ void LCD_WR_Queue(){
           r%=256;                                   //            Advance.
         }                                           //       (No! Return!)
     } else {
-		//if (spi_i2s_flag_get(SPI1,SPI_FLAG_TBE))    // ...yes! TBE high too?
-           OLED_CS_Set();                           // ......yes! CS high, done!
+        OLED_CS_Set();                              // ...yes! CS high, done!
     }
 }
 
