@@ -1,6 +1,6 @@
 #include "gd32vf103.h"
 #include "gd32vf103v_eval.h" // Include the header file for LED definitions
-
+#include <stdint.h>
 #include <string.h>
 
 #define FLASH_PAGE_SIZE      ((uint16_t)0x400U)           // 1 KB
@@ -10,7 +10,7 @@
 char saved_message[MAX_STR_LEN] = "HELLO!";
 char loaded_message[MAX_STR_LEN];
 
-// 🧽 Radera en flashsida
+// Radera en flashsida
 void flash_erase_page(uint32_t address) {
     fmc_unlock();
     fmc_flag_clear(FMC_FLAG_END | FMC_FLAG_PGERR | FMC_FLAG_WPERR);
@@ -20,7 +20,7 @@ void flash_erase_page(uint32_t address) {
     fmc_lock();
 }
 
-// 💾 Spara sträng till flash
+// Spara sträng till flash
 void flash_save_string(const char* str) {
     uint32_t len = strlen(str);
     uint32_t word = 0;
@@ -40,7 +40,7 @@ void flash_save_string(const char* str) {
     fmc_lock();
 }
 
-// 📖 Läs sträng från flash
+// Läs sträng från flash
 void flash_read_string(char* buffer, uint32_t max_len) {
     const char* flash_ptr = (const char*)FLASH_ADDR_START;
     uint32_t i = 0;
@@ -56,7 +56,7 @@ int main(void) {
     gd_eval_led_init(LED2);
     gd_eval_led_init(LED3);
 
-    // 📝 Läs sparad sträng från flash
+    // Läs sparad sträng från flash
     flash_read_string(loaded_message, MAX_STR_LEN);
 
     // Om inget är sparat – spara ny data
@@ -65,7 +65,7 @@ int main(void) {
         flash_read_string(loaded_message, MAX_STR_LEN);
     }
 
-    // ✅ Kontroll – är det vi läst samma som vi ville spara?
+    // Kontroll – är det vi läst samma som vi ville spara?
     if (strcmp(loaded_message, saved_message) == 0) {
         gd_eval_led_on(LED2); // OK
     } else {
