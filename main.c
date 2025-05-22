@@ -69,7 +69,7 @@ int main(void){
   int rUsrPos=1;             // mode==1, samma här men liten annan konstruktion (se nedan switch) då har flera slides (en för varje ruta i slide). Varje slide hämtar de olika textrutornas info från flash samt har en fjärde rutan per slide (utom slide 0) som är "in/ut rutan" -- till huv. slides tillhörande infoslide. r-mode markear dock också vilken text-kategori user står på också (varje textruta har ju egen adressrymd).
   int wMode=0;               // tillskrivningsmode
   int wModePos=0;
-  char words[15][18]={"Elias Ahlstrom", "Norway", "+47-58-32-86-44", "Penicillin Allergy", "Blood Type: O-", "On Warfarin", "Info 1", "Full Code", "Type 1 Diabetes", "Insulin", "Info 2", "Pacemaker", "Renal Transplant", "TB Active", "Info 3" };      // 0-2 är första slides 3 kategorier, 3-5 är slide 1 kategorier, 6 är slide 1 beskrivningsruta, etc.
+  char words[15][18]={"Elias Ahlstrom", "Norway", "+47-58-32-86-44", "Penicillin Allergy", "Blood Type O-", "On Warfarin", "Info 1", "Full Code", "Type 1 Diabetes", "Insulin", "Info 2", "Pacemaker", "Renal Transplant", "TB Active", "Info 3" };      // 0-2 är första slides 3 kategorier, 3-5 är slide 1 kategorier, 6 är slide 1 beskrivningsruta, etc.
   char alphabet[27]={'A', 'B','C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
   char bufLet[18]={'\0'};
   int letCount=0;
@@ -114,7 +114,6 @@ int main(void){
         l88mem(0,lookUpTbl[key]+(c<<4));
 
         if (wMode){   // Tillskrivningsmode
-
           if (lookUpTbl[key]==10){
             if (wModePos>0){
               wModePos--;
@@ -145,7 +144,7 @@ int main(void){
               wModePos=0;
               wMode=0;
 
-              // MÖJLIGEN EN RUSRPOS SWITCH HÄR SOM VISAR TIDIGARE SLIDEN VAR PÅ
+              // MÖJLIGEN EN rUsrPos SWITCH HÄR SOM VISAR TIDIGARE SLIDEN VAR PÅ
 
             }
           }
@@ -192,7 +191,7 @@ int main(void){
         } else {
 
           if (lookUpTbl[key]==10){       // A (up)
-            if (vUsrPos==0 || rUsrPos==1){
+            if (vUsrPos==0 && rUsrPos==1){
               modeSwap--;                // krävs 5 gåner, tills uppnår modeSwap == ModeSwitch}
             }
             if (modeSwap==MODESWITCH){
